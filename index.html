@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>README Viewer • compro-assets</title>
+		<!-- Tailwind via CDN for quick styling -->
+		<script src="https://cdn.tailwindcss.com"></script>
+		<!-- Marked: client-side Markdown to HTML -->
+		<script
+			src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+			defer
+		></script>
+		<!-- DOMPurify: sanitize rendered HTML -->
+		<script
+			src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"
+			defer
+		></script>
+		<style>
+			/* A few niceties for rendered markdown */
+			.markdown-body h1 {
+				font-size: 1.875rem;
+				margin-top: 1.25rem;
+				font-weight: 800;
+			}
+			.markdown-body h2 {
+				font-size: 1.5rem;
+				margin-top: 1.25rem;
+				font-weight: 700;
+			}
+			.markdown-body h3 {
+				font-size: 1.25rem;
+				margin-top: 1rem;
+				font-weight: 700;
+			}
+			.markdown-body p,
+			.markdown-body li {
+				line-height: 1.7;
+			}
+			.markdown-body pre {
+				background: #0b1020;
+				color: #e6edf3;
+				padding: 1rem;
+				border-radius: 0.75rem;
+				overflow: auto;
+			}
+			.markdown-body code {
+				background: #0b1020;
+				color: #e6edf3;
+				padding: 0.2rem 0.35rem;
+				border-radius: 0.4rem;
+			}
+			.markdown-body a {
+				text-decoration: underline;
+			}
+			.prose img {
+				max-width: 100%;
+				height: auto;
+				border-radius: 0.75rem;
+			}
+		</style>
+	</head>
+	<body class="bg-slate-50 text-slate-800">
+		<main class="max-w-3xl mx-auto px-4 py-8">
+			<header class="mb-6 flex items-center justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-extrabold tracking-tight">README Viewer</h1>
+					<p class="text-sm text-slate-500">
+						Renders a public GitHub README.md
+					</p>
+				</div>
+				<a
+					id="repoLink"
+					href="#"
+					target="_blank"
+					class="text-sm px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+					>View on GitHub</a
+				>
+			</header>
+
+			<section class="mb-4">
+				<label class="block text-xs font-medium text-slate-600 mb-2"
+					>README URL (raw or blob)</label
+				>
+				<div class="flex gap-2">
+					<input
+						id="readmeInput"
+						type="url"
+						class="flex-1 rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+						value="https://github.com/atams/compro-assets/blob/main/README.md"
+					/>
+					<button
+						id="loadBtn"
+						class="rounded-xl px-4 py-2 bg-black text-white hover:bg-slate-800"
+					>
+						Load
+					</button>
+				</div>
+				<p class="text-xs text-slate-500 mt-2">
+					Tip: You can paste either the GitHub <em>blob</em> URL or the
+					<em>raw</em> URL.
+				</p>
+			</section>
+
+			<div id="status" class="text-sm text-slate-500 mb-4">Ready.</div>
+
+			<article
+				id="content"
+				class="markdown-body prose prose-slate bg-white border border-slate-200 rounded-2xl p-6 shadow-sm"
+			></article>
+		</main>
+
+		<script>
+			// --- Helpers to convert GitHub blob URL -> raw URL and provide bases for rewriting ---
+			function urlPartsFromInput(inputUrl) {
+				try {
+					const u = new URL(inputUrl);
+					// If it's a blob URL like: https://github.com/{owner}/{repo}/blob/{branch}/path/to/file
+					if (u.hostname === 'github.com') {
+						const parts = u.pathname.split('/').filter(Boolean); // [owner, repo, 'blob', branch, ...path]
+						const owner = parts[0];
+						const repo = parts[1];
+						const blobOrTree = parts[2];
+						const branch = parts[3];
+						const pathParts = parts.slice(4); // README.md or nested path
+						const path = pathParts.join('/');
+						const raw = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+						return {
+							owner,
+							repo,
+							branch,
+							path,
+							rawUrl: raw,
+							baseRawDir: `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`,
+							baseWebDir: `https://github.com/${owner}/${repo}/blob/${branch}/`,
+							webBlobUrl: `https://github.com/${owner}/${repo}/blob/${branch}/${path}`,
+						};
+					}
+					// If it's already a raw URL like: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/path
+					if (u.hostname === 'raw.githubusercontent.com') {
+						const parts = u.pathname.split('/').filter(Boolean); // [owner, repo, branch, ...path]
+						const owner = parts[0];
+						const repo = parts[1];
+						const branch = parts[2];
+						const pathParts = parts.slice(3);
+						const path = pathParts.join('/');
+						return {
+							owner,
+							repo,
+							branch,
+							path,
+							rawUrl: u.toString(),
+							baseRawDir: `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`,
+							baseWebDir: `https://github.com/${owner}/${repo}/blob/${branch}/`,
+							webBlobUrl: `https://github.com/${owner}/${repo}/blob/${branch}/${path}`,
+						};
+					}
+					// Otherwise, treat as a generic URL
+					return {
+						rawUrl: inputUrl,
+						baseRawDir: '',
+						baseWebDir: '',
+						webBlobUrl: inputUrl,
+					};
+				} catch (e) {
+					return {
+						rawUrl: inputUrl,
+						baseRawDir: '',
+						baseWebDir: '',
+						webBlobUrl: inputUrl,
+					};
+				}
+			}
+
+			// Rewrite relative links/images inside markdown to absolute GitHub URLs
+			function makeRendererWithBases(baseRawDir, baseWebDir) {
+				const renderer = new marked.Renderer();
+
+				renderer.image = function (href, title, text) {
+					// If href is relative, prefix with raw dir so images load directly
+					const absolute = isAbsoluteUrl(href)
+						? href
+						: baseRawDir + (href || '');
+					const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+					const alt = text ? escapeHtml(text) : '';
+					return `<img src="${absolute}" alt="${alt}"${titleAttr} />`;
+				};
+
+				renderer.link = function (href, title, text) {
+					const absolute = isAbsoluteUrl(href)
+						? href
+						: baseWebDir + (href || '');
+					const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+					const label = text || href || '';
+					return `<a href="${absolute}" target="_blank" rel="noopener"${titleAttr}>${escapeHtml(
+						label
+					)}</a>`;
+				};
+
+				return renderer;
+			}
+
+			function isAbsoluteUrl(url) {
+				return /^(?:[a-z]+:)?\/\//i.test(url || '');
+			}
+
+			function escapeHtml(s) {
+				return String(s).replace(
+					/[&<>"']/g,
+					(c) =>
+						({
+							'&': '&amp;',
+							'<': '&lt;',
+							'>': '&gt;',
+							'"': '&quot;',
+							"'": '&#39;',
+						}[c])
+				);
+			}
+
+			async function loadReadme(inputUrl) {
+				const status = document.getElementById('status');
+				const content = document.getElementById('content');
+				const repoLink = document.getElementById('repoLink');
+
+				const parts = urlPartsFromInput(inputUrl);
+				repoLink.href = parts.webBlobUrl || inputUrl;
+
+				status.textContent = 'Fetching README…';
+				content.innerHTML = '';
+
+				try {
+					const res = await fetch(parts.rawUrl, {
+						headers: { Accept: 'text/plain' },
+						cache: 'no-store',
+					});
+					if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+					const md = await res.text();
+
+					// Configure marked
+					marked.setOptions({
+						breaks: true,
+						gfm: true,
+						headerIds: true,
+						mangle: false,
+						renderer: makeRendererWithBases(parts.baseRawDir, parts.baseWebDir),
+					});
+
+					const html = marked.parse(md);
+					const clean = DOMPurify.sanitize(html, {
+						USE_PROFILES: { html: true },
+					});
+					content.innerHTML = clean;
+					status.textContent = 'Loaded successfully.';
+				} catch (err) {
+					console.error(err);
+					status.innerHTML = `<span class="text-red-600">Error:</span> ${escapeHtml(
+						err.message
+					)}`;
+					content.innerHTML =
+						'<p class="text-slate-500">Could not load the README. Check that the file is public and the URL is correct.</p>';
+				}
+			}
+
+			// Wire up UI
+			window.addEventListener('DOMContentLoaded', () => {
+				const input = document.getElementById('readmeInput');
+				const btn = document.getElementById('loadBtn');
+
+				btn.addEventListener('click', () => loadReadme(input.value.trim()));
+				input.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						loadReadme(input.value.trim());
+					}
+				});
+
+				// Initial load with default README
+				loadReadme(input.value.trim());
+			});
+		</script>
+	</body>
+</html>
