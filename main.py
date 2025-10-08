@@ -3,6 +3,8 @@ Simple FastAPI server to serve documentation links
 Run with: uvicorn main:app --reload
 """
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pathlib import Path
 import glob
 
@@ -62,15 +64,8 @@ async def get_docs():
 
 @app.get("/")
 async def root():
-    """Root endpoint with API info"""
-    return {
-        "message": "ATAMS Documentation API",
-        "endpoints": {
-            "/adocs": "Get all documentation files from BE folder",
-            "/docs": "Swagger UI documentation",
-        }
-    }
-
+    """Serve index.html"""
+    return FileResponse("index.html")
 
 if __name__ == "__main__":
     import uvicorn
