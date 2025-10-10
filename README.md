@@ -34,7 +34,7 @@ adocs/
 
 1. Clone repository:
 ```bash
-git clone https://github.com/atams/adocs-api.git
+git clone https://github.com/GratiaManullang03/adocs-api.git
 cd adocs
 ```
 
