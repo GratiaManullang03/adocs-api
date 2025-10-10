@@ -14,42 +14,46 @@ app = FastAPI(
     version="1.0.0"
 )
 
-BASE_GITHUB_URL = "https://github.com/atams/adocs-api/blob/main/BE/"
+BASE_GITHUB_URL = "https://github.com/atams/adocs-api/blob/main/"
 
 
 @app.get("/adocs")
 async def get_docs():
     """
-    Get all markdown documentation files from BE folder with GitHub links
+    Get all markdown documentation files from Backend and Frontend folders with GitHub links
 
     Returns:
         dict: List of documentation files with their GitHub URLs
     """
-    # Get current directory and BE folder
+    # Get current directory
     current_dir = Path(__file__).parent
-    be_folder = current_dir / "BE"
 
-    # Check if BE folder exists
-    if not be_folder.exists():
-        return {
-            "success": False,
-            "message": "BE folder not found",
-            "total": 0,
-            "data": []
-        }
-
-    # Find all .md files in BE folder
-    md_files = glob.glob(str(be_folder / "*.md"))
+    # Folders to search for documentation
+    doc_folders = ["Backend", "Frontend"]
 
     # Create list of documentation with GitHub URLs
     docs_list = []
-    for file_path in md_files:
-        filename = Path(file_path).name
-        docs_list.append({
-            "name": filename.replace(".md", "").replace("-", " ").title(),
-            "filename": filename,
-            "url": f"{BASE_GITHUB_URL}{filename}"
-        })
+
+    for folder_name in doc_folders:
+        folder_path = current_dir / folder_name
+
+        # Skip if folder doesn't exist
+        if not folder_path.exists():
+            continue
+
+        # Find all .md files in folder
+        md_files = glob.glob(str(folder_path / "*.md"))
+
+        for file_path in md_files:
+            file_path_obj = Path(file_path)
+            filename = file_path_obj.name
+            relative_path = f"{folder_name}/{filename}"
+
+            docs_list.append({
+                "name": filename.replace(".md", "").replace("-", " ").title(),
+                "filename": relative_path,
+                "url": f"{BASE_GITHUB_URL}{relative_path}"
+            })
 
     # Sort by filename
     docs_list.sort(key=lambda x: x["filename"])
