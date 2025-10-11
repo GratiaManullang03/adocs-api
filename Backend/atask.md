@@ -24,6 +24,7 @@ Atask adalah aplikasi manajemen task/tugas yang dibangun dengan FastAPI dan teri
   - [Nested Resources](#nested-resources)
   - [Labels](#labels)
   - [Users](#users)
+  - [Notifications](#notifications)
 - [Penjelasan Parameter Unik](#penjelasan-parameter-unik)
 - [Response Format](#response-format)
 - [Authentication & Authorization](#authentication--authorization)
@@ -36,7 +37,8 @@ Atask adalah aplikasi manajemen task/tugas yang dibangun dengan FastAPI dan teri
 - **Auto-Generated Task Code**: Task code otomatis dihasilkan berdasarkan project dan tipe task
 - **Task Duration Auto-Calculate**: Durasi otomatis dihitung dalam jam dari start_date sampai due_date
 - **Komentar & Diskusi**: Sistem komentar dengan threading (reply to comment)
-- **File Attachment**: Upload dan download file untuk setiap task ⚠️ _Under Development_
+- **File Attachment**: Upload dan download file untuk setiap task menggunakan Cloudinary
+- **Email Notification**: Automated daily task reminder via email untuk assignee (scheduled dengan GitHub Actions)
 - **Immutable Audit Trail**: Otomatis tracking perubahan task di history (log-only, tidak bisa diubah/dihapus)
 - **Labeling System**: Tag/label fleksibel untuk kategorisasi task dengan bulk operations
 - **Task Watcher**: Subscribe untuk mendapat notifikasi perubahan task dengan bulk operations
@@ -56,38 +58,35 @@ Atask adalah aplikasi manajemen task/tugas yang dibangun dengan FastAPI dan teri
 - **Authentication**: Atlas SSO (ATAMS)
 - **Validation**: Pydantic
 - **Server**: Uvicorn
+- **File Storage**: Cloudinary
+- **Email**: SMTP (Gmail, SendGrid, etc.)
+- **Template Engine**: Jinja2
+- **Scheduling**: GitHub Actions (Serverless Cron)
 
 ## Instalasi
 
 1. **Clone repository**
-
 ```bash
 git clone https://github.com/GratiaManullang03/atask.git
 cd atask
 ```
 
 2. **Buat virtual environment**
-
 ```bash
 python -m venv venv
 ```
 
 3. **Aktifkan virtual environment**
-
 - Windows:
-
 ```bash
 venv\Scripts\activate
 ```
-
 - Linux/Mac:
-
 ```bash
 source venv/bin/activate
 ```
 
 4. **Install dependencies**
-
 ```bash
 pip install -r requirements.txt
 ```
@@ -110,6 +109,25 @@ ATLAS_SSO_URL=https://atlas.yourdomain.com/api
 ATLAS_APP_CODE=atask
 ATLAS_ENCRYPTION_KEY=your-32-char-encryption-key
 ATLAS_ENCRYPTION_IV=your-16-char-iv
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_FOLDER=atask
+
+# Email Configuration
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_FROM=noreply@yourdomain.com
+MAIL_FROM_NAME=Atask Notification
+MAIL_PORT=587
+MAIL_SERVER=smtp.gmail.com
+MAIL_USE_TLS=True
+MAIL_USE_SSL=False
+
+# Cron API Key (generate: openssl rand -hex 32)
+CRON_API_KEY=your_secure_random_key_here
 
 # Response Encryption (Optional)
 ENCRYPTION_ENABLED=true
@@ -147,7 +165,6 @@ Base URL: `/api/v1`
 ### Master Data
 
 #### Master Status
-
 Endpoint untuk mengelola master data status task (To Do, In Progress, Done, dll).
 
 - `GET /api/v1/master-statuses` - Get all status
@@ -157,7 +174,6 @@ Endpoint untuk mengelola master data status task (To Do, In Progress, Done, dll)
 - `DELETE /api/v1/master-statuses/{ms_id}` - Delete status (creator only)
 
 #### Master Priority
-
 Endpoint untuk mengelola master data prioritas task (Low, Medium, High, Critical).
 
 - `GET /api/v1/master-priorities` - Get all priorities
@@ -167,7 +183,6 @@ Endpoint untuk mengelola master data prioritas task (Low, Medium, High, Critical
 - `DELETE /api/v1/master-priorities/{mp_id}` - Delete priority (creator only)
 
 #### Master Task Type
-
 Endpoint untuk mengelola master data tipe task (Task, Bug, Feature, dll).
 
 - `GET /api/v1/master-task-types` - Get all task types
@@ -179,29 +194,26 @@ Endpoint untuk mengelola master data tipe task (Task, Bug, Feature, dll).
 ### Projects
 
 #### Create Project
-
 ```http
 POST /api/v1/projects
 ```
 
 **Request Body:**
-
 ```json
 {
-	"prj_code": "PROJ-001",
-	"prj_name": "Website Redesign",
-	"prj_description": "Redesign company website with modern UI/UX",
-	"prj_start_date": "2025-01-15",
-	"prj_end_date": "2025-06-30",
-	"prj_u_id": 123,
-	"prj_is_active": true
+  "prj_code": "PROJ-001",
+  "prj_name": "Website Redesign",
+  "prj_description": "Redesign company website with modern UI/UX",
+  "prj_start_date": "2025-01-15",
+  "prj_end_date": "2025-06-30",
+  "prj_u_id": 123,
+  "prj_is_active": true
 }
 ```
 
 **Response:** `201 Created` dengan field tambahan `prj_owner_name` (auto-joined)
 
 #### Get All Projects
-
 ```http
 GET /api/v1/projects?skip=0&limit=100
 ```
@@ -209,7 +221,6 @@ GET /api/v1/projects?skip=0&limit=100
 **Response:** `200 OK` - Semua project dengan `prj_owner_name` (auto-joined)
 
 #### Get Project by ID
-
 ```http
 GET /api/v1/projects/{prj_id}
 ```
@@ -217,7 +228,6 @@ GET /api/v1/projects/{prj_id}
 **Response:** `200 OK` - Detail project dengan `prj_owner_name` (auto-joined)
 
 #### Update Project
-
 ```http
 PUT /api/v1/projects/{prj_id}
 ```
@@ -225,20 +235,18 @@ PUT /api/v1/projects/{prj_id}
 **Authorization:** ⚠️ **Only creator (created_by) can update**
 
 **Request Body:** (semua field opsional)
-
 ```json
 {
-	"prj_name": "Website Redesign v2",
-	"prj_description": "Updated description",
-	"prj_end_date": "2025-07-15",
-	"prj_is_active": true
+  "prj_name": "Website Redesign v2",
+  "prj_description": "Updated description",
+  "prj_end_date": "2025-07-15",
+  "prj_is_active": true
 }
 ```
 
 **Response:** `200 OK` atau `403 Forbidden` jika bukan creator
 
 #### Delete Project
-
 ```http
 DELETE /api/v1/projects/{prj_id}
 ```
@@ -248,94 +256,87 @@ DELETE /api/v1/projects/{prj_id}
 **Response:** `204 No Content` atau `403 Forbidden`
 
 #### Get Project Statistics
-
 ```http
 GET /api/v1/projects/{prj_id}/statistics
 ```
 
 **Response:** `200 OK` - Statistik lengkap dengan struktur nested:
-
 ```json
 {
-	"prj_id": 1,
-	"prj_name": "Website Redesign",
-	"total_tasks": 50,
-	"by_status": {
-		"TODO": 10,
-		"IN_PROGRESS": 15,
-		"IN_REVIEW": 5,
-		"DONE": 18,
-		"CANCELLED": 2
-	},
-	"by_priority": {
-		"LOW": 8,
-		"MEDIUM": 20,
-		"HIGH": 15,
-		"CRITICAL": 7
-	},
-	"by_type": {
-		"TASK": 25,
-		"BUG": 12,
-		"FEATURE": 8,
-		"IMPROVEMENT": 3,
-		"RESEARCH": 2
-	},
-	"overdue_tasks": 3,
-	"completion_rate": 0.36,
-	"average_completion_time": 72.5
+  "prj_id": 1,
+  "prj_name": "Website Redesign",
+  "total_tasks": 50,
+  "by_status": {
+    "TODO": 10,
+    "IN_PROGRESS": 15,
+    "IN_REVIEW": 5,
+    "DONE": 18,
+    "CANCELLED": 2
+  },
+  "by_priority": {
+    "LOW": 8,
+    "MEDIUM": 20,
+    "HIGH": 15,
+    "CRITICAL": 7
+  },
+  "by_type": {
+    "TASK": 25,
+    "BUG": 12,
+    "FEATURE": 8,
+    "IMPROVEMENT": 3,
+    "RESEARCH": 2
+  },
+  "overdue_tasks": 3,
+  "completion_rate": 0.36,
+  "average_completion_time": 72.5
 }
 ```
 
 ### Tasks
 
 #### Create Task
-
 ```http
 POST /api/v1/tasks
 ```
 
 **Request Body:**
-
 ```json
 {
-	"tsk_title": "Design homepage mockup",
-	"tsk_description": "Create high-fidelity mockup for homepage redesign",
-	"tsk_prj_id": 1,
-	"tsk_ms_id": 1,
-	"tsk_mp_id": 3,
-	"tsk_mtt_id": 1,
-	"tsk_assignee_u_id": 456,
-	"tsk_reporter_u_id": 123,
-	"tsk_start_date": "2025-01-20T09:00:00Z",
-	"tsk_parent_tsk_id": null
+  "tsk_title": "Design homepage mockup",
+  "tsk_description": "Create high-fidelity mockup for homepage redesign",
+  "tsk_prj_id": 1,
+  "tsk_ms_id": 1,
+  "tsk_mp_id": 3,
+  "tsk_mtt_id": 1,
+  "tsk_assignee_u_id": 456,
+  "tsk_reporter_u_id": 123,
+  "tsk_start_date": "2025-01-20T09:00:00Z",
+  "tsk_parent_tsk_id": null
 }
 ```
 
 **Important Notes:**
-
 - ✅ `tsk_code` is **auto-generated** (format: `{prj_id}/{task_type_code}/{number}`)
 - ❌ `tsk_due_date` **cannot be set at creation** (only assignee can set it later)
 - ❌ `tsk_duration` **is auto-calculated** (read-only, in hours)
 
 **Response:** `201 Created` dengan joins:
-
 ```json
 {
-	"tsk_code": "001/TASK/001",
-	"tsk_title": "Design homepage mockup",
-	"tsk_duration": null,
-	"tsk_project_name": "Website Redesign",
-	"tsk_status_name": "To Do",
-	"tsk_priority_name": "High",
-	"tsk_priority_color": "#FF9800",
-	"tsk_type_name": "Task",
-	"tsk_assignee_name": "John Doe",
-	"tsk_reporter_name": "Jane Smith"
+  "tsk_code": "001/TASK/001",
+  "tsk_title": "Design homepage mockup",
+  "tsk_duration": null,
+  "tsk_project_name": "Website Redesign",
+  "tsk_status_name": "To Do",
+  "tsk_priority_name": "High",
+  "tsk_priority_color": "#FF9800",
+  "tsk_type_name": "Task",
+  "tsk_assignee_name": "John Doe",
+  "tsk_reporter_name": "Jane Smith"
 }
 ```
 
 #### Get All Tasks
-
 ```http
 GET /api/v1/tasks?skip=0&limit=100
 ```
@@ -343,7 +344,6 @@ GET /api/v1/tasks?skip=0&limit=100
 **Response:** `200 OK` - All tasks dengan auto-joins (project_name, status_name, dll)
 
 #### Get Task by ID
-
 ```http
 GET /api/v1/tasks/{tsk_id}
 ```
@@ -351,7 +351,6 @@ GET /api/v1/tasks/{tsk_id}
 **Response:** `200 OK` - Detail lengkap dengan auto-joins
 
 #### Update Task
-
 ```http
 PUT /api/v1/tasks/{tsk_id}
 ```
@@ -359,21 +358,19 @@ PUT /api/v1/tasks/{tsk_id}
 **Authorization:** ⚠️ **Only creator (created_by) can update**
 
 **Request Body:** (semua field opsional)
-
 ```json
 {
-	"tsk_title": "Design homepage mockup v2",
-	"tsk_description": "Updated description",
-	"tsk_ms_id": 2,
-	"tsk_mp_id": 4,
-	"tsk_assignee_u_id": 789,
-	"tsk_start_date": "2025-01-20T09:00:00Z",
-	"tsk_due_date": "2025-01-25T17:00:00Z"
+  "tsk_title": "Design homepage mockup v2",
+  "tsk_description": "Updated description",
+  "tsk_ms_id": 2,
+  "tsk_mp_id": 4,
+  "tsk_assignee_u_id": 789,
+  "tsk_start_date": "2025-01-20T09:00:00Z",
+  "tsk_due_date": "2025-01-25T17:00:00Z"
 }
 ```
 
 **Special Rules:**
-
 - ✅ `tsk_due_date` **can only be set by assignee** (or null to clear)
 - ✅ `due_date >= start_date` (validation error jika due_date lebih awal)
 - ✅ `tsk_duration` **auto-calculated in hours** dari (due_date - start_date)
@@ -383,7 +380,6 @@ PUT /api/v1/tasks/{tsk_id}
 **Response:** `200 OK` atau `400 Bad Request` atau `403 Forbidden`
 
 #### Delete Task
-
 ```http
 DELETE /api/v1/tasks/{tsk_id}
 ```
@@ -393,43 +389,39 @@ DELETE /api/v1/tasks/{tsk_id}
 **Response:** `204 No Content` atau `403 Forbidden`
 
 #### Bulk Update Status
-
 ```http
 PATCH /api/v1/tasks/bulk-update-status
 ```
 
 **Request Body:**
-
 ```json
 {
-	"task_ids": [1, 2, 3, 5],
-	"ms_id": 4
+  "task_ids": [1, 2, 3, 5],
+  "ms_id": 4
 }
 ```
 
 **Response:** `200 OK` - Info jumlah task yang berhasil diupdate
 
 #### Advanced Search
-
 ```http
 POST /api/v1/tasks/search
 ```
 
 **Request Body:**
-
 ```json
 {
-	"keyword": "design",
-	"project_ids": [1, 2],
-	"status_ids": [1, 2],
-	"priority_ids": [3, 4],
-	"type_ids": [1],
-	"assignee_ids": [456],
-	"reporter_ids": [123],
-	"date_from": "2025-01-01",
-	"date_to": "2025-12-31",
-	"skip": 0,
-	"limit": 20
+  "keyword": "design",
+  "project_ids": [1, 2],
+  "status_ids": [1, 2],
+  "priority_ids": [3, 4],
+  "type_ids": [1],
+  "assignee_ids": [456],
+  "reporter_ids": [123],
+  "date_from": "2025-01-01",
+  "date_to": "2025-12-31",
+  "skip": 0,
+  "limit": 20
 }
 ```
 
@@ -445,20 +437,17 @@ POST /api/v1/tasks/search
 ```http
 POST /api/v1/tasks/{tsk_id}/comments
 ```
-
 **Request Body:**
-
 ```json
 {
-	"tc_comment": "This looks great! Please add the color scheme.",
-	"tc_parent_tc_id": null
+  "tc_comment": "This looks great! Please add the color scheme.",
+  "tc_parent_tc_id": null
 }
 ```
 
 ```http
 GET /api/v1/tasks/{tsk_id}/comments?skip=0&limit=100
 ```
-
 **Response:** List comments dengan auto-joins: `tc_task_title`, `tc_user_name`, `tc_user_email`
 
 #### Task History (Audit Log)
@@ -468,7 +457,6 @@ GET /api/v1/tasks/{tsk_id}/history?skip=0&limit=100&field_name=status
 ```
 
 **Important:**
-
 - 📝 History adalah **immutable audit log**
 - ✅ **Auto-created** saat task diupdate
 - ✅ **Only GET** endpoint available
@@ -478,7 +466,6 @@ GET /api/v1/tasks/{tsk_id}/history?skip=0&limit=100&field_name=status
 **Response:** List history dengan auto-joins: `th_task_title`, `th_user_name`
 
 **Tracked Fields:**
-
 - `title`, `description`, `status`, `priority`, `assignee`, `due_date`, `start_date`
 
 #### Task Labels
@@ -486,25 +473,21 @@ GET /api/v1/tasks/{tsk_id}/history?skip=0&limit=100&field_name=status
 ```http
 POST /api/v1/tasks/{tsk_id}/labels
 ```
-
 **Request Body:**
-
 ```json
 {
-	"tl_lbl_id": 1
+  "tl_lbl_id": 1
 }
 ```
 
 ```http
 GET /api/v1/tasks/{tsk_id}/labels
 ```
-
 **Response:** List labels dengan auto-joins: `tl_task_title`, `tl_label_name`, `tl_label_color`
 
 ```http
 DELETE /api/v1/tasks/{tsk_id}/labels/{lbl_ids}
 ```
-
 **Bulk Delete:** `lbl_ids` bisa comma-separated (e.g., `1,2,3`)
 
 #### Task Watchers
@@ -512,77 +495,104 @@ DELETE /api/v1/tasks/{tsk_id}/labels/{lbl_ids}
 ```http
 POST /api/v1/tasks/{tsk_id}/watchers
 ```
-
 **Request Body:**
-
 ```json
 {
-	"tw_u_id": 789
+  "tw_u_id": 789
 }
 ```
 
 ```http
 GET /api/v1/tasks/{tsk_id}/watchers
 ```
-
 **Response:** List watchers dengan auto-joins: `tw_task_title`, `tw_user_name`, `tw_user_email`
 
 ```http
 DELETE /api/v1/tasks/{tsk_id}/watchers/{u_ids}
 ```
-
 **Bulk Delete:** `u_ids` bisa comma-separated (e.g., `2,3,4`)
 
 #### Task Attachments
 
-> **⚠️ UNDER DEVELOPMENT**: Semua endpoint akan return `"Attachment feature is currently under development"`
-
+**Upload File Attachment**
 ```http
-POST /api/v1/tasks/{tsk_id}/attachments
+POST /api/v1/attachments?task_id={tsk_id}
+Content-Type: multipart/form-data
+```
+**Request:**
+- Form field `file`: File to upload
+- Query param `task_id`: Task ID
+
+**Validation:**
+- Allowed types: PDF (.pdf), Images (.png, .jpg, .jpeg)
+- Max size: 5MB (images), 10MB (PDF)
+- Files uploaded to Cloudinary
+
+**Get All Attachments**
+```http
+GET /api/v1/attachments?skip=0&limit=100
 ```
 
+**Get Attachment by ID**
 ```http
-GET /api/v1/tasks/{tsk_id}/attachments
+GET /api/v1/attachments/{ta_id}
 ```
+
+**Update Attachment Metadata**
+```http
+PUT /api/v1/attachments/{ta_id}
+```
+**Request Body:**
+```json
+{
+  "ta_file_name": "new_filename.pdf"
+}
+```
+
+**Delete Attachment**
+```http
+DELETE /api/v1/attachments/{ta_id}
+```
+Menghapus dari database dan Cloudinary.
+
+**Download Attachment**
+```http
+GET /api/v1/attachments/{ta_id}/download
+```
+Forces download dengan proper Content-Disposition header.
 
 ### Labels
 
 #### Create Label
-
 ```http
 POST /api/v1/labels
 ```
 
 **Request Body:**
-
 ```json
 {
-	"lbl_name": "frontend",
-	"lbl_color": "#3498db",
-	"lbl_description": "Frontend related tasks"
+  "lbl_name": "frontend",
+  "lbl_color": "#3498db",
+  "lbl_description": "Frontend related tasks"
 }
 ```
 
 #### Get All Labels
-
 ```http
 GET /api/v1/labels?skip=0&limit=100&search=frontend
 ```
 
 #### Get Label by ID
-
 ```http
 GET /api/v1/labels/{lbl_id}
 ```
 
 #### Update Label
-
 ```http
 PUT /api/v1/labels/{lbl_id}
 ```
 
 #### Delete Label
-
 ```http
 DELETE /api/v1/labels/{lbl_id}
 ```
@@ -590,7 +600,6 @@ DELETE /api/v1/labels/{lbl_id}
 ### Users
 
 #### Get All Users
-
 ```http
 GET /api/v1/users?skip=0&limit=100&search=john
 ```
@@ -598,7 +607,6 @@ GET /api/v1/users?skip=0&limit=100&search=john
 **Response:** List users dari Atlas SSO
 
 #### Get User Dashboard
-
 ```http
 GET /api/v1/users/{u_id}/dashboard
 ```
@@ -606,74 +614,147 @@ GET /api/v1/users/{u_id}/dashboard
 **Response:** Dashboard user dengan statistik (assigned tasks, reported tasks, watched tasks, recent activities)
 
 #### Get Watched Tasks by User
-
 ```http
 GET /api/v1/users/{u_id}/watched-tasks?skip=0&limit=100&status_id=2
 ```
+
+### Notifications
+
+Email notification system untuk mengingatkan assignee tentang task yang mulai hari ini.
+
+#### Send Daily Reminders (Scheduled Endpoint)
+```http
+POST /api/v1/notifications/send-daily-reminders
+Headers:
+  X-Api-Key: {CRON_API_KEY}
+```
+
+**Security:** Requires `CRON_API_KEY` in header
+
+**Triggered by:** GitHub Actions setiap jam 9 pagi
+
+**Logic:**
+- Cari tasks dimana `tsk_start_date = today`
+- Filter tasks yang ada assignee (`tsk_assignee_u_id NOT NULL`)
+- Kirim email HTML ke assignee
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Daily reminders processed: 10 sent, 0 failed",
+  "data": {
+    "total_tasks": 10,
+    "emails_sent": 10,
+    "emails_failed": 0,
+    "success_rate": 100.0,
+    "failed_tasks": []
+  }
+}
+```
+
+#### Notification Health Check
+```http
+GET /api/v1/notifications/health
+```
+
+**No authentication required** - untuk monitoring
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "email_configured": true,
+  "cron_api_key_configured": true
+}
+```
+
+#### Email Template Info
+
+Email notification berisi:
+- Greeting dengan nama assignee
+- Task code & title
+- Project name & code
+- Status, Priority, Type
+- Reporter name
+- Start date
+- Task description (jika ada)
+- Beautiful responsive HTML design
+
+#### GitHub Actions Setup
+
+1. **Add GitHub Secrets:**
+   - `APP_URL`: URL aplikasi Anda (e.g., `https://your-app.vercel.app`)
+   - `CRON_API_KEY`: Same value dengan env variable `CRON_API_KEY`
+
+2. **Workflow File:** `.github/workflows/daily-task-reminder.yml`
+
+3. **Schedule:** Runs at `02:00 UTC` daily (09:00 WIB)
+
+4. **Manual Trigger:** Bisa di-trigger manual dari GitHub Actions tab
 
 ## Penjelasan Parameter Unik
 
 ### Project Parameters
 
-| Parameter         | Tipe    | Deskripsi                                   |
-| ----------------- | ------- | ------------------------------------------- |
-| `prj_id`          | Integer | ID unik project (Primary Key)               |
-| `prj_code`        | String  | Kode project yang unique                    |
-| `prj_name`        | String  | Nama project                                |
-| `prj_description` | Text    | Deskripsi lengkap project                   |
-| `prj_start_date`  | Date    | Tanggal mulai project                       |
-| `prj_end_date`    | Date    | Target tanggal selesai project              |
-| `prj_u_id`        | Integer | ID user owner project                       |
-| `prj_owner_name`  | String  | **Auto-joined** nama owner dari Atlas users |
-| `prj_is_active`   | Boolean | Status project aktif/nonaktif               |
+| Parameter | Tipe | Deskripsi |
+|-----------|------|-----------|
+| `prj_id` | Integer | ID unik project (Primary Key) |
+| `prj_code` | String | Kode project yang unique |
+| `prj_name` | String | Nama project |
+| `prj_description` | Text | Deskripsi lengkap project |
+| `prj_start_date` | Date | Tanggal mulai project |
+| `prj_end_date` | Date | Target tanggal selesai project |
+| `prj_u_id` | Integer | ID user owner project |
+| `prj_owner_name` | String | **Auto-joined** nama owner dari Atlas users |
+| `prj_is_active` | Boolean | Status project aktif/nonaktif |
 
 ### Task Parameters
 
-| Parameter            | Tipe      | Deskripsi                                                  |
-| -------------------- | --------- | ---------------------------------------------------------- |
-| `tsk_id`             | Integer   | ID unik task (Primary Key)                                 |
-| `tsk_code`           | String    | **Auto-generated** format: `{prj_id}/{type_code}/{number}` |
-| `tsk_title`          | String    | Judul/ringkasan task                                       |
-| `tsk_description`    | Text      | Deskripsi lengkap task                                     |
-| `tsk_prj_id`         | Integer   | ID project (required)                                      |
-| `tsk_ms_id`          | Integer   | ID master status (required)                                |
-| `tsk_mp_id`          | Integer   | ID master priority (required)                              |
-| `tsk_mtt_id`         | Integer   | ID master task type (required)                             |
-| `tsk_assignee_u_id`  | Integer   | ID user assigned (optional)                                |
-| `tsk_reporter_u_id`  | Integer   | ID user reporter (required)                                |
-| `tsk_start_date`     | Timestamp | Tanggal mulai                                              |
-| `tsk_due_date`       | Timestamp | Deadline (**only assignee can set**)                       |
-| `tsk_duration`       | Decimal   | **Auto-calculated in hours** (read-only)                   |
-| `tsk_parent_tsk_id`  | Integer   | ID parent task untuk sub-task                              |
-| `tsk_project_name`   | String    | **Auto-joined** nama project                               |
-| `tsk_status_name`    | String    | **Auto-joined** nama status                                |
-| `tsk_priority_name`  | String    | **Auto-joined** nama priority                              |
-| `tsk_priority_color` | String    | **Auto-joined** warna priority                             |
-| `tsk_type_name`      | String    | **Auto-joined** nama type                                  |
-| `tsk_assignee_name`  | String    | **Auto-joined** nama assignee                              |
-| `tsk_reporter_name`  | String    | **Auto-joined** nama reporter                              |
+| Parameter | Tipe | Deskripsi |
+|-----------|------|-----------|
+| `tsk_id` | Integer | ID unik task (Primary Key) |
+| `tsk_code` | String | **Auto-generated** format: `{prj_id}/{type_code}/{number}` |
+| `tsk_title` | String | Judul/ringkasan task |
+| `tsk_description` | Text | Deskripsi lengkap task |
+| `tsk_prj_id` | Integer | ID project (required) |
+| `tsk_ms_id` | Integer | ID master status (required) |
+| `tsk_mp_id` | Integer | ID master priority (required) |
+| `tsk_mtt_id` | Integer | ID master task type (required) |
+| `tsk_assignee_u_id` | Integer | ID user assigned (optional) |
+| `tsk_reporter_u_id` | Integer | ID user reporter (required) |
+| `tsk_start_date` | Timestamp | Tanggal mulai |
+| `tsk_due_date` | Timestamp | Deadline (**only assignee can set**) |
+| `tsk_duration` | Decimal | **Auto-calculated in hours** (read-only) |
+| `tsk_parent_tsk_id` | Integer | ID parent task untuk sub-task |
+| `tsk_project_name` | String | **Auto-joined** nama project |
+| `tsk_status_name` | String | **Auto-joined** nama status |
+| `tsk_priority_name` | String | **Auto-joined** nama priority |
+| `tsk_priority_color` | String | **Auto-joined** warna priority |
+| `tsk_type_name` | String | **Auto-joined** nama type |
+| `tsk_assignee_name` | String | **Auto-joined** nama assignee |
+| `tsk_reporter_name` | String | **Auto-joined** nama reporter |
 
 ### History Parameters
 
-| Parameter       | Tipe      | Deskripsi                     |
-| --------------- | --------- | ----------------------------- |
-| `th_id`         | Integer   | ID unik history (Primary Key) |
-| `th_tsk_id`     | Integer   | ID task yang berubah          |
-| `th_field_name` | String    | Field yang diubah             |
-| `th_old_value`  | String    | Nilai lama                    |
-| `th_new_value`  | String    | Nilai baru                    |
-| `th_u_id`       | Integer   | ID user yang mengubah         |
-| `th_task_title` | String    | **Auto-joined** judul task    |
-| `th_user_name`  | String    | **Auto-joined** nama user     |
-| `created_by`    | String    | User yang membuat record      |
-| `created_at`    | Timestamp | Waktu pembuatan               |
+| Parameter | Tipe | Deskripsi |
+|-----------|------|-----------|
+| `th_id` | Integer | ID unik history (Primary Key) |
+| `th_tsk_id` | Integer | ID task yang berubah |
+| `th_field_name` | String | Field yang diubah |
+| `th_old_value` | String | Nilai lama |
+| `th_new_value` | String | Nilai baru |
+| `th_u_id` | Integer | ID user yang mengubah |
+| `th_task_title` | String | **Auto-joined** judul task |
+| `th_user_name` | String | **Auto-joined** nama user |
+| `created_by` | String | User yang membuat record |
+| `created_at` | Timestamp | Waktu pembuatan |
 
 **Note:** History **tidak memiliki** `updated_by` dan `updated_at` (immutable log)
 
 ## Response Format
 
 ### Success Response dengan Data
-
 ```json
 {
   "success": true,
@@ -683,7 +764,6 @@ GET /api/v1/users/{u_id}/watched-tasks?skip=0&limit=100&status_id=2
 ```
 
 ### Success Response dengan Pagination
-
 ```json
 {
   "success": true,
@@ -697,7 +777,6 @@ GET /api/v1/users/{u_id}/watched-tasks?skip=0&limit=100&status_id=2
 ```
 
 ### Error Response
-
 ```json
 {
   "success": false,
@@ -723,13 +802,11 @@ Token didapat dari Atlas SSO. Setiap request akan divalidasi dan mendapat inform
 **Minimum Role Level:** Role level minimal **10** untuk akses API.
 
 **Creator-Only Operations:**
-
 - ⚠️ **UPDATE**: Hanya creator (`created_by == current_user_id`) yang bisa update
 - ⚠️ **DELETE**: Hanya creator (`created_by == current_user_id`) yang bisa delete
 - Berlaku untuk: Projects, Tasks, Master Data
 
 **Special Task Rules:**
-
 - ⚠️ **tsk_due_date**: Hanya assignee (`tsk_assignee_u_id == current_user_id`) yang bisa set/update
 - ⚠️ **tsk_duration**: Read-only, auto-calculated (tidak bisa manual set)
 
@@ -782,7 +859,6 @@ Response data bisa di-enkripsi otomatis jika `ENCRYPTION_ENABLED=true`. Client p
 2. **Immutable Audit Trail**: History adalah log yang tidak bisa diubah/dihapus
 
 3. **Auto-Generated Fields**:
-
    - Task code auto-generated
    - Task duration auto-calculated
    - History auto-created on updates
@@ -795,4 +871,12 @@ Response data bisa di-enkripsi otomatis jika `ENCRYPTION_ENABLED=true`. Client p
 
 7. **Duration in Hours**: Task duration dihitung dalam satuan **jam (hours)**
 
-8. **File Upload** (Under Development): Fitur attachment sedang dalam pengembangan
+8. **File Upload**: Attachment menggunakan Cloudinary untuk cloud storage
+
+9. **Email Notifications**:
+   - Automated daily reminders via GitHub Actions
+   - Triggered setiap jam 9 pagi (WIB)
+   - Beautiful HTML email template
+   - Supports Gmail, SendGrid, Mailgun, dan SMTP lainnya
+
+10. **Serverless Deployment**: Kompatibel dengan Vercel serverless deployment
