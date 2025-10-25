@@ -1,347 +1,567 @@
 ---
-title: ATABOT-Lite - Lightweight Adaptive Chatbot
-description: Lightweight adaptive chatbot backend with hybrid search, multi-language support, and LLM integration optimized for business landing pages
+title: ATABOT-Lite - Conversational Landing Page Bot
+description: Conversational Landing Page Bot backend with hybrid search, multi-language support, and LLM integration optimized for business landing pages
 order: 4
 category: AI Service
 tags: [atabot-lite, chatbot, nlp, hybrid-search, fastapi, poe-api]
 ---
 
-# ATABOT-Lite
+# ATABOT Lite v3 - Conversational Landing Page Bot
 
-## 🎯 Overview
+A simple chatbot for company profiles that answers questions based on company data. This bot uses GPT-4o-mini via the POE API with context injection from `data.json`.
 
-**ATABOT-Lite** is a lightweight, adaptive chatbot backend optimized for **company landing pages** and business websites. Built with FastAPI, it provides intelligent chat capabilities through **hybrid search technology** (keyword + semantic) and **multi-language support**, making it perfect for customer service and lead generation.
+## Table of Contents
 
-## ✨ Key Features
+* [Key Features](#key-features)
+* [Technology Stack](#technology-stack)
+* [Prerequisites](#prerequisites)
+* [Installation](#installation)
+* [Configuration](#configuration)
+* [Running the Application](#running-the-application)
+* [API Endpoints](#api-endpoints)
+* [Architecture](#architecture)
+* [Business Logic](#business-logic)
+* [Security](#security)
+* [Project Structure](#project-structure)
 
-### 🤖 **Smart AI Integration**
-- **LLM Integration**: Powered by Poe API for intelligent responses
-- **Hybrid Search**: Combines keyword matching + semantic search for optimal performance
-- **Enhanced NLP**: Advanced intent recognition and entity extraction
-- **Multi-Language Support**: Indonesian, English, and mixed language detection
+## Key Features
 
-### 🚀 **Performance Optimized**
-- **Lightweight**: < 400KB codebase, perfect for serverless deployment
-- **Fast Response**: < 2 seconds for 90% of queries
-- **Smart Caching**: Session-based conversation memory
-- **Cost Efficient**: Minimal API calls through intelligent routing
+* **Context-Aware Responses**: Answers questions based solely on `data.json`; rejects out-of-context questions
+* **Session Memory**: Tracks conversation history per session for follow-up questions
+* **Self-Introduction**: The bot can introduce itself when asked
+* **GPT-4o-mini Integration**: Uses the POE API to generate natural responses
+* **Company Profile Focus**: Specially designed to answer about Atams and its services
+* **Rate Limiting**: Protection from spam requests (built-in via ATAMS framework)
 
-### 🏗️ **Business Adaptive**
-- **Universal Business Support**: Works for ANY industry (restaurant, healthcare, tech, retail, etc.)
-- **Dynamic Data Structure**: Automatically adapts to different service categories
-- **Flexible FAQ System**: Supports unlimited business-specific Q&A
-- **Custom Bot Personality**: Configurable tone and behavior per company
+## Technology Stack
 
-### 🛡️ **Production Ready**
-- **Rate Limiting**: Configurable request limits with headers
-- **Security Middleware**: XSS protection and security headers
-- **Error Handling**: Graceful degradation when APIs unavailable
-- **Session Management**: Automatic cleanup and memory optimization
+* **Framework**: FastAPI (via ATAMS Toolkit)
+* **AI Model**: GPT-4o-mini (via POE API)
+* **API Client**: OpenAI Python SDK
+* **Database**: PostgreSQL (optional, for framework)
+* **Validation**: Pydantic
+* **Server**: Uvicorn
+* **Architecture**: AURA (ATAMS Universal Rest API)
 
-## 🏗️ Architecture
+## Prerequisites
 
-### **Clean Architecture Layers:**
-```
-┌─────────────────────────────────────┐
-│           API Endpoints             │  ← FastAPI Routes
-├─────────────────────────────────────┤
-│          Middleware Layer           │  ← Security, Rate Limiting
-├─────────────────────────────────────┤
-│         Services Layer              │  ← Business Logic
-│  • ChatbotService (Core Logic)      │
-│  • NLPService (Language Processing) │
-│  • LLMService (AI Integration)      │
-│  • EmbeddingService (Vector Search) │
-├─────────────────────────────────────┤
-│         Core Layer                  │  ← Configuration, Utils
-├─────────────────────────────────────┤
-│    External APIs / Data Sources     │  ← Poe, Voyage, data.json
-└─────────────────────────────────────┘
-```
+* Python 3.10+
+* PostgreSQL (optional, for other ATAMS features)
+* POE API Key for GPT-4o-mini
+* Virtual environment (recommended)
 
-### **Hybrid Search Flow:**
-```
-User Query → NLP Processing → Intent Detection
-     ↓
-Keyword Search (Fast) → Results >= 3? → Return Results
-     ↓ (if < 3 results)
-Semantic Search (AI) → Combine & Deduplicate → Return Top Results
-```
+## Installation
 
-## 🛠️ Technologies
+1. **Clone the repository:**
 
-- **Backend**: FastAPI, Python 3.11+
-- **AI**: Poe API (LLM), Voyage AI (Embeddings)
-- **NLP**: Custom lightweight processing
-- **Architecture**: Clean Architecture, Dependency Injection
-- **Deployment**: Vercel, Docker, or traditional hosting
+   ```bash
+   git clone https://github.com/[username]/atabot-lite-v3.git
+   cd atabot-lite-v3
+   ```
 
-## 🚀 Quick Start
+2. **Create a virtual environment:**
 
-### 1. **Installation**
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd atabot-lite
+   ```bash
+   python -m venv venv
+   ```
 
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
+3. **Activate the virtual environment:**
 
-# Install dependencies
-pip install -r requirements.txt
-```
+   * Linux/Mac:
 
-### 2. **Configuration**
-Create `.env` file:
+     ```bash
+     source venv/bin/activate
+     ```
+   * Windows:
+
+     ```bash
+     venv\Scripts\activate
+     ```
+
+4. **Install dependencies:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Configuration
+
+Create a `.env` file in the project root directory with the following variables:
+
 ```env
-# Required for full functionality
-POE_API_KEY=your_poe_api_key
-VOYAGE_API_KEY=your_voyage_api_key  # Optional for semantic search
+# Application Settings
+APP_NAME=atabot_lite_v3
+APP_VERSION=1.0.0
+DEBUG=true
 
-# Models (optional, has defaults)
-POE_MODEL=ChatGPT-3.5-Turbo
-VOYAGE_MODEL=voyage-3.5-lite
+# Database Configuration (required by ATAMS framework)
+DATABASE_URL=postgresql://user:password@localhost:5432/atabot_lite_v3
+
+# Database Connection Pool
+DB_POOL_SIZE=3
+DB_MAX_OVERFLOW=5
+DB_POOL_RECYCLE=3600
+DB_POOL_TIMEOUT=30
+DB_POOL_PRE_PING=true
+
+# POE API Configuration (REQUIRED for chatbot)
+POE_API_KEY=your_poe_api_key_here
+POE_MODEL=GPT-4o-mini
+
+# CORS Configuration
+CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
+CORS_ALLOW_CREDENTIALS=true
+CORS_ALLOW_METHODS=*
+CORS_ALLOW_HEADERS=*
+
+# Logging
+LOGGING_ENABLED=true
+LOG_LEVEL=INFO
+LOG_TO_FILE=false
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=60
 ```
 
-### 3. **Configure Your Business Data**
-Edit `data.json` with your company information:
+**Important:** Make sure the `.env` file is not committed to the repository. Use `.env.example` as a template.
+
+## Running the Application
+
+### Development Mode
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Production Mode
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+**Access Points:**
+
+* API Documentation (Swagger): [http://localhost:8000/docs](http://localhost:8000/docs)
+* API Documentation (ReDoc): [http://localhost:8000/redoc](http://localhost:8000/redoc)
+* Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+* Chat Endpoint: [http://localhost:8000/api/v1/chat](http://localhost:8000/api/v1/chat)
+
+## API Endpoints
+
+Base URL: `/api/v1`
+
+### Chat
+
+**Base Path:** `/api/v1/chat`
+
+#### POST /api/v1/chat/
+
+Send a message to the chatbot and receive a response based on company data.
+
+**Authorization:** None (public endpoint)
+
+**Request Body:**
 
 ```json
 {
-  "bot_config": {
-    "name": "YourBot",
-    "personality": "professional and helpful",
-    "language": "Indonesian",
-    "max_response_length": 500,
-    "temperature": 0.7,
-    "rules": [
-      "Always be polite and professional",
-      "Only provide information based on company data",
-      "If unsure, direct to customer service"
-    ]
-  },
-  "company_data": {
-    "company_name": "Your Company",
-    "description": "Your company description",
-    "services": [
-      {
-        "category": "Main Services",
-        "name": "Service Name",
-        "description": "Service description",
-        "price": "Contact for pricing",
-        "features": ["Feature 1", "Feature 2"]
-      }
-    ],
-    "faq": [
-      {
-        "question": "Common customer question?",
-        "answer": "Your helpful answer here."
-      }
-    ],
-    "contacts": {
-      "whatsapp": "+62-XXX-XXXX-XXXX",
-      "email": "contact@yourcompany.com",
-      "address": "Your business address"
-    }
-  }
+  "message": "What is Atams?",
+  "session_id": "optional-session-id"
 }
 ```
 
-### 4. **Run Application**
-```bash
-# Development
-uvicorn app.main:app --reload
+**Request Fields:**
 
-# Production
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-Access at: `http://localhost:8000`
-
-## 📚 API Documentation
-
-### **Core Endpoints**
-
-#### **💬 Chat API**
-- `POST /api/v1/chat/message` - Send message, get complete response
-- `POST /api/v1/chat/message/stream` - Get streaming response (SSE)
-- `GET /api/v1/chat/session/create` - Create new chat session
-- `GET /api/v1/chat/history/{session_id}` - Get conversation history
-- `DELETE /api/v1/chat/session/{session_id}` - Clear session
-
-#### **❤️ System Health**
-- `GET /api/v1/health` - Health check
-- `GET /docs` - Swagger documentation
-- `GET /` - Demo widget page
-
-### **Request/Response Examples**
-
-**Send Message:**
-```bash
-curl -X POST "http://localhost:8000/api/v1/chat/message" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "message": "Halo, apa layanan yang tersedia?",
-       "session_id": "session123"
-     }'
-```
+* `message` (required): User message/question (string, 1–2000 characters)
+* `session_id` (optional): Session ID to track the conversation (string)
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "message": "Message processed successfully",
-  "data": {
-    "response": "Halo! Kami menyediakan berbagai layanan...",
-    "session_id": "session123",
-    "timestamp": "2024-01-01T12:00:00Z"
+  "message": "Atams is an innovative Indonesian technology startup focused on providing all-in-one digital solutions for SMEs...",
+  "session_id": "ce222231-792e-4d57-9747-bc1ec2aae1ce",
+  "timestamp": "2025-10-24T14:36:31.308561"
+}
+```
+
+**Response Fields:**
+
+* `message`: The bot’s answer
+* `session_id`: Session ID for conversation tracking
+* `timestamp`: Response time (UTC)
+
+**Example Requests:**
+
+1. **First question (without session_id):**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, who are you?"}'
+```
+
+2. **Follow-up question (with session_id):**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are your main services?", "session_id": "your-session-id-here"}'
+```
+
+3. **Follow-up question (bot will remember previous context):**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "How much does it cost?", "session_id": "same-session-id"}'
+```
+
+### Health Check
+
+#### GET /health
+
+Check application status and database connection.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "database": "connected"
+}
+```
+
+## Architecture
+
+### Data Flow
+
+```
+User Message → Chat Endpoint → Chatbot Service → POE API (GPT-4o-mini)
+                                      ↓
+                               Load data.json
+                               Build System Prompt
+                               Session Memory Check
+                                      ↓
+Bot Response ← Format Response ← Process AI Response
+```
+
+### Layered Architecture
+
+```
+API Layer (endpoints/)       → Business Logic (services/)       → External API (POE)
+     ↓                                  ↓
+  FastAPI                       ChatbotService                   OpenAI Client
+  Request Validation            Context Injection                GPT-4o-mini
+  Response Format               Session Memory
+```
+
+### Session Memory
+
+Session memory is stored **in-memory** with the structure:
+
+* **Max messages per session**: 10 recent messages
+* **Session TTL**: 30 minutes since last activity
+* **Cleanup**: Automatically removes expired sessions
+
+## Business Logic
+
+### Context Injection
+
+The chatbot uses **context injection** to ensure accurate answers:
+
+1. **Load Company Data**: Reads `data.json` on service initialization
+2. **Build System Prompt**: Composes a prompt containing:
+
+   * Bot identity & personality
+   * Company information (name, description, tagline)
+   * Brand meaning (ATAMS)
+   * Services (12 products)
+   * Technology stack
+   * FAQ
+   * Contact info
+   * Rules (bot behavior policies)
+3. **Inject Context**: Sends system prompt + conversation history + user message to GPT-4o-mini
+4. **Enforce Rules**: The bot is instructed to:
+
+   * Only answer questions about Atams
+   * Introduce itself when asked
+   * Politely decline out-of-context questions
+
+### Session Memory Management
+
+```python
+# Session structure
+{
+  "session_id": {
+    "messages": [
+      {"role": "user", "content": "..."},
+      {"role": "assistant", "content": "..."}
+    ],
+    "last_activity": datetime
   }
 }
 ```
 
-## 🎨 Business Examples
+**Process:**
 
-The system automatically adapts to ANY business type. See `/examples/` folder for:
+1. User sends a message with/without session_id
+2. If no session_id, generate a new one
+3. Load conversation history from memory
+4. Append user message to history
+5. Send to POE API with full context
+6. Save response to session memory
+7. Return response + session_id
 
-- **Restaurant** (`restaurant_data.json`) - Menu, prices, delivery info
-- **Healthcare** (`healthcare_data.json`) - Services, doctors, BPJS info
-- **Tech Services** (`tech_services_data.json`) - Development, pricing, timelines
+### Bot Personality & Rules
 
-Simply replace `data.json` with your business data structure!
+The bot is configured in `data.json` → `bot_config`:
 
-## 🚀 Deployment
-
-### **Vercel (Recommended for Serverless)**
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-```
-
-### **Docker**
-```bash
-# Build image
-docker build -t atabot-lite .
-
-# Run container
-docker run -p 8000:8000 --env-file .env atabot-lite
-```
-
-### **Traditional Hosting**
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run with gunicorn
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
-```
-
-## 🔧 Configuration Options
-
-### **Environment Variables**
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `POE_API_KEY` | Poe API key for LLM | Optional* | None |
-| `POE_MODEL` | LLM model to use | No | "ChatGPT-3.5-Turbo" |
-| `VOYAGE_API_KEY` | Voyage AI for embeddings | Optional | None |
-| `VOYAGE_MODEL` | Embedding model | No | "voyage-3.5-lite" |
-
-*Without API keys, bot will show configuration messages
-
-### **Performance Tuning**
 ```json
-// In data.json bot_config
 {
-  "temperature": 0.7,           // Creativity (0.0-1.0)
-  "max_response_length": 500,   // Response limit
-  "language": "Indonesian"      // Primary language
+  "name": "Atabot",
+  "personality": "friendly, professional, and helpful",
+  "language": "Indonesian",
+  "max_response_length": 500,
+  "temperature": 0.7,
+  "rules": [
+    "Always use polite and professional language",
+    "If you don’t know the answer, say it honestly",
+    "Provide accurate information based on available data",
+    "Do not give information outside the company context"
+  ]
 }
 ```
 
-## 🎯 Multi-Language Support
+## Security
 
-### **Supported Languages**
-- **Indonesian**: Full support with slang detection
-- **English**: Complete language support
-- **Mixed Languages**: Smart detection and context switching
-- **Regional Languages**: AI-powered understanding
-- **Slang/Abbreviations**: Automatic normalization
+### Public API
 
-### **Smart Language Routing**
+The `/api/v1/chat` endpoint is a **public endpoint** with no authentication to simplify landing page integration.
+
+### Rate Limiting
+
+The ATAMS framework provides built-in rate limiting:
+
+* **Default**: 100 requests per 60 seconds
+* **Configurable**: Via `.env` (`RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`)
+
+### Environment Variables Security
+
+**Critical secrets that must NOT be committed:**
+
+* `POE_API_KEY`: POE API key
+* `DATABASE_URL`: Database connection string
+
+Always use `.env.example` as a template and copy it to `.env` for development.
+
+### Session Memory Security
+
+* Session data stored in-memory (non-persistent)
+* Expired sessions auto-cleaned on each request
+* No sensitive user data stored
+
+## Project Structure
+
 ```
-Simple queries (Indonesian/English) → Fast keyword search
-Complex queries (mixed/regional) → AI-powered processing
+atabot-lite-v3/
+├── app/
+│   ├── core/
+│   │   ├── config.py              # Configuration (added: POE_API_KEY, POE_MODEL)
+│   │   └── __init__.py
+│   ├── db/                        # Database setup (from ATAMS framework)
+│   │   ├── session.py
+│   │   └── __init__.py
+│   ├── models/                    # (empty – no DB models for chatbot)
+│   │   └── __init__.py
+│   ├── schemas/                   # Pydantic schemas
+│   │   ├── chat.py                # ChatRequest, ChatResponse
+│   │   ├── common.py              # Shared response schemas
+│   │   └── __init__.py
+│   ├── services/                  # Business logic layer
+│   │   ├── chatbot_service.py     # ChatbotService, SessionMemory
+│   │   └── __init__.py
+│   ├── api/
+│   │   ├── deps.py                # Dependencies (from ATAMS)
+│   │   └── v1/
+│   │       ├── api.py             # Router aggregation
+│   │       └── endpoints/
+│   │           ├── chat.py        # Chat endpoint
+│   │           └── __init__.py
+│   ├── repositories/              # (empty – no data access layer needed)
+│   │   └── __init__.py
+│   └── main.py                    # FastAPI application entry point
+├── tests/                         # Test files (not yet implemented)
+├── data.json                      # Company data & bot configuration (CORE FILE)
+├── .env                           # Environment variables (DO NOT COMMIT!)
+├── .env.example                   # Environment template
+├── .gitignore
+├── requirements.txt               # Python dependencies
+└── README.md                      # This file
 ```
 
-## 🛡️ Security Features
+## Key Files Explanation
 
-- **Rate Limiting**: Configurable per IP (default: 20 req/min)
-- **Input Validation**: XSS and injection protection
-- **Security Headers**: X-Frame-Options, CSP, etc.
-- **API Key Protection**: Graceful degradation when missing
-- **Session Isolation**: Secure conversation separation
+### `data.json`
 
-## 📊 Performance Metrics
+This file is the **main data source** for the chatbot. Structure:
 
-| Metric | Target | Achieved |
-|--------|---------|----------|
-| Response Time (P90) | < 2s | ✅ ~1.5s |
-| Memory Usage | < 100MB | ✅ ~80MB |
-| Docker Image Size | < 500MB | ✅ ~380MB |
-| Code Lines | < 1500 | ✅ ~1200 |
-| API Calls (per query) | Minimal | ✅ 0-1 calls |
+```json
+{
+  "bot_config": { /* bot configuration */ },
+  "company_data": {
+    "company_name": "...",
+    "services": [ /* array of services */ ],
+    "faq": [ /* array of FAQs */ ],
+    "contacts": { /* contact info */ },
+    "additional_info": { /* extra info */ }
+  }
+}
+```
 
-## 🔍 Troubleshooting
+**How to update data:**
 
-### **Common Issues**
+1. Edit `data.json` with the latest information
+2. Restart the application (the service reloads the data)
+3. Test the chatbot to ensure data is updated
 
-1. **"API key tidak tersedia"**
-   - Add `POE_API_KEY` to `.env` file
-   - Bot works in demo mode without API keys
+### `app/services/chatbot_service.py`
 
-2. **Slow responses**
-   - Check internet connection
-   - Verify API key validity
-   - Consider using keyword search only
+Core chatbot logic:
 
-3. **Memory issues**
-   - Clear old sessions: `DELETE /api/v1/chat/session/{id}`
-   - Restart application periodically
+* `SessionMemory`: Class for managing conversation history
+* `ChatbotService`: Main service class with methods:
 
-4. **Language not understood**
-   - System falls back to AI processing automatically
-   - Add common terms to `data.json` FAQ section
+  * `_load_company_data()`: Loads `data.json`
+  * `_build_system_prompt()`: Builds context injection prompt
+  * `get_response()`: Processes user message & returns bot response
 
-### **Debug Mode**
+### `app/api/v1/endpoints/chat.py`
+
+FastAPI endpoint for chat. Simple POST endpoint that:
+
+1. Receives `ChatRequest`
+2. Calls `chatbot_service.get_response()`
+3. Returns `ChatResponse`
+
+## Testing
+
+### Manual Testing
+
+Use Swagger UI for interactive testing:
+
+```
+http://localhost:8000/docs
+```
+
+Or use curl:
+
 ```bash
-# Enable debug logging
-export DEBUG=true
-uvicorn app.main:app --reload --log-level debug
+# Test 1: Bot introduction
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, who are you?"}'
+
+# Test 2: About company
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is Atams?"}'
+
+# Test 3: Out of context (should reject)
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": "How do I cook fried rice?"}'
+
+# Test 4: Session memory (follow-up question)
+SESSION_ID="test-123"
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d "{\"message\": \"What are Atams’ main services?\", \"session_id\": \"$SESSION_ID\"}"
+
+curl -X POST http://localhost:8000/api/v1/chat/ \
+  -H "Content-Type: application/json" \
+  -d "{\"message\": \"How much does it cost?\", \"session_id\": \"$SESSION_ID\"}"
 ```
 
-## 🤝 Contributing
+### Expected Behavior
 
-1. Fork repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+* The bot should introduce itself as “Atabot, the virtual assistant from Atams”
+* The bot should accurately answer questions about Atams
+* The bot should politely reject out-of-context questions
+* The bot should remember conversation context within the same session
 
-## 📄 License
+## Deployment
 
-This project is licensed under the MIT License. See `LICENSE` file for details.
+### Environment-Specific Configuration
 
----
+**Development:**
 
-## 💡 Need Help?
+* `DEBUG=true`
+* `LOG_LEVEL=INFO`
+* CORS allows specific origins only
 
-- 📖 **Full Documentation**: Check `/docs` endpoint when running
-- 🎬 **Demo**: Visit root URL (`/`) for interactive widget
-- 🐛 **Issues**: Report bugs via GitHub Issues
-- 💬 **Support**: Create discussion for questions
+**Production:**
 
-**Built with ❤️ for Indonesian UMKM and businesses worldwide**
+* `DEBUG=false`
+* `LOG_LEVEL=WARNING`
+* CORS restricted to production domain
+* Use `--workers 4` or more for Uvicorn
+
+### Deployment Checklist
+
+1. Set all environment variables in production
+2. Ensure `POE_API_KEY` is valid and not expired
+3. Update `CORS_ORIGINS` with the production domain
+4. Set `DEBUG=false`
+5. Enable rate limiting (`RATE_LIMIT_ENABLED=true`)
+6. Monitor `/health` endpoint for health checks
+
+## Customization
+
+### Update Company Data
+
+Edit [data.json](data.json) to update:
+
+* Company information
+* List of services/products
+* FAQ
+* Contact info
+* Bot personality & rules
+
+### Adjust Bot Behavior
+
+In [data.json](data.json) → `bot_config`:
+
+```json
+{
+  "temperature": 0.7,           // 0.0 = strict, 1.0 = creative
+  "max_response_length": 500,   // Max tokens per response
+  "personality": "...",          // Bot personality description
+  "rules": [...]                 // Bot behavior rules
+}
+```
+
+### Session Configuration
+
+In [app/services/chatbot_service.py](app/services/chatbot_service.py) → `SessionMemory`:
+
+```python
+SessionMemory(
+    max_messages_per_session=10,  # Number of messages stored
+    session_ttl_minutes=30         # Session TTL (minutes)
+)
+```
+
+## Support
+
+For questions or issues:
+
+* Email: [info@atamsindonesia.com](mailto:info@atamsindonesia.com)
+* Documentation: [ATAMS Docs](https://docs.atamsindonesia.com)
+* Company Website: [https://atamsindonesia.com](https://atamsindonesia.com)
+
+## License
+
+Proprietary – Atams Indonesia
