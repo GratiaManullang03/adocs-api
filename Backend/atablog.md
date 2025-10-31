@@ -3,7 +3,21 @@ title: Atablog - Blog Management System
 description: A comprehensive blog management system built with FastAPI and PostgreSQL, featuring AI-powered content generation, media management with Cloudinary, and Atlas SSO integration
 order: 14
 category: Backend Application
-tags: [blog, fastapi, postgresql, ai-generation, cloudinary, atlas-sso]
+tags:
+    [
+        blog,
+        cms,
+        fastapi,
+        postgresql,
+        ai-generation,
+        poe-api,
+        jina-ai,
+        cloudinary,
+        wysiwyg,
+        media-management,
+        atlas-sso,
+        sqlalchemy,
+    ]
 ---
 
 # Atablog - Blog Management System
@@ -28,7 +42,9 @@ A comprehensive blog management system built with FastAPI and PostgreSQL, featur
 ## Key Features
 
 -   **AI Blog Generator** 🤖: Generate blog posts using POE API (GPT-4o-mini) with Jina AI for web search and content fetching
--   **Cloudinary Integration** ☁️: Secure media storage with signed URLs and automatic cleanup
+-   **WYSIWYG Editor Support** ✍️: Full support for WYSIWYG editors (Tiptap) with images embedded in HTML content
+-   **Featured Image Upload** 📷: Separate thumbnail/featured image management with dedicated endpoints
+-   **Cloudinary Integration** ☁️: Secure media storage with signed URLs (15-min expiry) and automatic cleanup
 -   **View Counter** 👁️: IP-based rate limiting (15 minutes) with automatic cleanup after 24 hours
 -   **Status Transitions** 🔄: Strict workflow management (Draft → Published → Archived → Deleted)
 -   **Edit Protection** 🔒: Only Draft and Archived posts can be edited
@@ -217,29 +233,36 @@ Base URL: `/api/v1`
 
 #### Blog Posts
 
--   `GET /api/v1/blog` - List all posts with filters (status, category, author, search)
--   `GET /api/v1/blog/{id}` - Get post detail with relations
--   `POST /api/v1/blog` - Create post (Draft status)
+-   `GET /api/v1/blog` - List all posts with filters (status, category, author, search) + featured_image_url
+-   `GET /api/v1/blog/{id}` - Get post detail with relations + featured_image_url
+-   `POST /api/v1/blog` - Create post (Draft status, auto-extracts media from HTML)
 -   `POST /api/v1/blog/generate` - **AI Generate** post from topic or URLs
--   `PUT /api/v1/blog/{id}` - Update post (Draft/Archived only)
+-   `PUT /api/v1/blog/{id}` - Update post (Draft/Archived only, auto-extracts media from HTML)
 -   `PUT /api/v1/blog/{id}/status` - Change post status
 -   `PUT /api/v1/blog/{id}/featured` - Toggle featured (max 5)
+-   `POST /api/v1/blog/{id}/featured-image` - Upload featured image (PNG/JPG/JPEG, max 5MB)
+-   `DELETE /api/v1/blog/{id}/featured-image` - Delete featured image
 -   `DELETE /api/v1/blog/{id}` - Soft delete post
 
 ### Media Management (Admin)
 
--   `GET /api/v1/media` - List media with signed URLs (15min expiry)
--   `POST /api/v1/media/upload` - Upload to Cloudinary
+-   `POST /api/v1/media/upload` - Upload image to Cloudinary (for WYSIWYG editor)
 -   `DELETE /api/v1/media/{id}` - Delete from Cloudinary + cleanup relations
 
 **Supported Formats:** JPG, PNG, WebP (max 5MB)
+
+**WYSIWYG Integration:**
+
+-   Images are embedded directly in `bp_content` HTML using `data-media-id` attribute
+-   Backend auto-parses HTML to track media usage in `post_media` table
+-   Example: `<img src="cloudinary-url" data-media-id="123" alt="description">`
 
 ### Public Endpoints
 
 **No Authorization Required**
 
--   `GET /api/v1/posts` - List published posts with filters
--   `GET /api/v1/posts/{slug}` - Get post by slug + increment view counter
+-   `GET /api/v1/posts` - List published posts with filters + featured_image_url
+-   `GET /api/v1/posts/{slug}` - Get post by slug + increment view counter + featured_image_url
 
 View counter has 15-minute rate limit per IP (hashed with SHA256).
 
@@ -262,9 +285,11 @@ View counter has 15-minute rate limit per IP (hashed with SHA256).
 6. **post_tag** - Many-to-many: posts ↔ tags
     - FK → `atablog.blog_post` (CASCADE)
     - FK → `atablog.master_tag` (CASCADE)
-7. **post_media** - Post media attachments
+7. **post_media** - Media tracking (simplified for WYSIWYG)
     - FK → `atablog.blog_post` (CASCADE)
-    - FK → `atablog.media_file` (CASCADE)
+    - FK → `atablog.media_file` (RESTRICT)
+    - Only tracks which media is used in posts (no position/placement/caption)
+    - Images are embedded in HTML content with `data-media-id` attribute
 8. **blog_view_tracking** - View counter rate limiting (24h retention)
 
 ### Layered Architecture
@@ -350,12 +375,37 @@ Deleted (5) → [Terminal state]
 -   Rate limit: 15 minutes per IP per post
 -   Auto cleanup: Records > 24 hours deleted automatically
 
+### WYSIWYG Image Management
+
+**Frontend Integration (Tiptap):**
+
+1. User inserts image in WYSIWYG editor
+2. Frontend uploads to `POST /api/v1/media/upload`
+3. Response contains `mf_id` and signed URL
+4. Frontend inserts `<img src="url" data-media-id="{mf_id}">`
+5. Backend auto-extracts media IDs from HTML on save
+
+**Media Tracking:**
+
+-   `post_media` table only tracks which images are used in posts
+-   All positioning, sizing, captions controlled by HTML/CSS in frontend
+-   Images embedded directly in `bp_content` (no separate media array)
+
+### Featured Image Management
+
+**Separate from content images:**
+
+-   Featured image = post thumbnail (`bp_featured_image` column)
+-   Upload: `POST /api/v1/blog/{id}/featured-image` (PNG/JPG/JPEG, max 5MB)
+-   Delete: `DELETE /api/v1/blog/{id}/featured-image`
+-   All GET endpoints return `featured_image_url` (Cloudinary signed URL, 15-min expiry)
+
 ### Media Delete - Auto Cleanup
 
 **Cascade Flow:**
 
 1. Delete from Cloudinary
-2. Set `bp_featured_image = NULL` in posts using it
+2. Set `bp_featured_image = NULL` in posts using it as featured image
 3. Delete `post_media` relations (CASCADE)
 4. Delete from `media_file` table
 
@@ -442,39 +492,45 @@ atablog/
 │   │   └── post_tag.py
 │   ├── schemas/                   # Pydantic schemas
 │   │   ├── common.py              # Base response schemas
-│   │   ├── blog.py
-│   │   ├── category.py
-│   │   ├── tag.py
-│   │   └── media.py
+│   │   ├── blog_post.py           # Blog schemas
+│   │   ├── master_category.py     # Category schemas
+│   │   ├── master_tag.py          # Tag schemas
+│   │   ├── master_status.py       # Status schemas
+│   │   └── media_file.py          # Media schemas
 │   ├── repositories/              # Data access layer
 │   │   ├── blog_repository.py
 │   │   ├── category_repository.py
 │   │   └── ...
 │   ├── services/                  # Business logic
-│   │   ├── blog_service.py
+│   │   ├── blog_service.py        # Blog CRUD + featured image
+│   │   ├── blog_list_service.py   # Blog list with pagination
 │   │   ├── ai_service.py          # POE + Jina integration
 │   │   ├── media_service.py       # Cloudinary
-│   │   └── ...
+│   │   ├── category_service.py    # Category CRUD
+│   │   ├── tag_service.py         # Tag CRUD
+│   │   └── status_service.py      # Status list
 │   ├── api/
 │   │   ├── deps.py                # Auth dependencies
 │   │   └── v1/
 │   │       ├── api.py             # Router aggregation
 │   │       └── endpoints/
-│   │           ├── blog.py
-│   │           ├── categories.py
-│   │           ├── tags.py
-│   │           ├── media.py
-│   │           └── public.py
+│   │           ├── blog_admin.py      # Blog admin endpoints
+│   │           ├── blog_public.py     # Blog public endpoints
+│   │           ├── master_category.py # Category endpoints
+│   │           ├── master_tag.py      # Tag endpoints
+│   │           ├── master_status.py   # Status endpoints
+│   │           └── media.py           # Media upload/delete
 │   ├── utils/
-│   │   └── slug.py                # Slug generation
+│   │   ├── slug.py                # Slug generation
+│   │   ├── read_time.py           # Read time & excerpt
+│   │   ├── security.py            # IP hashing
+│   │   ├── cloudinary_helper.py   # Cloudinary operations
+│   │   ├── jina_helper.py         # Jina AI search/fetch
+│   │   └── html_parser.py         # Extract media IDs from HTML
 │   └── main.py                    # FastAPI app
 ├── tests/
 │   ├── conftest.py
 │   └── test_*/
-├── docs/                          # Documentation
-│   ├── BLOG ENDPOINTS.md
-│   ├── BLOG DDL.md
-│   └── cloudinary/
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
