@@ -38,6 +38,11 @@ A comprehensive blog management system built with FastAPI and PostgreSQL, featur
 -   [Security](#security)
 -   [Deployment](#deployment)
 -   [Project Structure](#project-structure)
+-   [Validation Rules Summary](#validation-rules-summary)
+-   [Error Handling](#error-handling)
+-   [Performance Optimizations](#performance-optimizations)
+-   [API Interactive Documentation](#api-interactive-documentation)
+-   [Support](#support)
 
 ## Key Features
 
@@ -233,16 +238,35 @@ Base URL: `/api/v1`
 
 #### Blog Posts
 
--   `GET /api/v1/blog` - List all posts with filters (status, category, author, search) + featured_image_url
--   `GET /api/v1/blog/{id}` - Get post detail with relations + featured_image_url
--   `POST /api/v1/blog` - Create post (Draft status, auto-extracts media from HTML)
--   `POST /api/v1/blog/generate` - **AI Generate** post from topic or URLs
--   `PUT /api/v1/blog/{id}` - Update post (Draft/Archived only, auto-extracts media from HTML)
--   `PUT /api/v1/blog/{id}/status` - Change post status
--   `PUT /api/v1/blog/{id}/featured` - Toggle featured (max 5)
+-   `GET /api/v1/blog` - List all posts with filters and pagination
+    -   **Query Parameters:** `status_id`, `category_id`, `author_id`, `search`, `sort` (created_at|published_at|view_count), `order` (asc|desc), `page` (default: 1), `size` (1-100, default: 20)
+    -   Returns posts with `featured_image_url`, author info, category, tags, view count
+-   `GET /api/v1/blog/{id}` - Get post detail with full relations
+    -   Returns complete post data including content, metadata, reference URLs, media tracking
+-   `POST /api/v1/blog` - Create post (always Draft status, auto-extracts media from HTML)
+    -   **Validation:** Title (1-255 chars), content (required), max 10 tags per post
+    -   **Auto-calculation:** Slug, read time, excerpt (if not provided)
+    -   **Media tracking:** Auto-extracts `data-media-id` from HTML content
+-   `POST /api/v1/blog/generate` - **AI Generate** post from topic or URLs (max 3 URLs)
+    -   **Target lengths:** short (500-800 words), medium (1200-1800 words), long (2500-3500 words)
+    -   **Two modes:** Web search (no URLs) or Reference (URLs provided)
+    -   Uses POE API (GPT-4o-mini) + Jina AI for content fetching
+    -   Always creates with Draft status, stores reference URLs
+-   `PUT /api/v1/blog/{id}` - Update post (Draft/Archived only)
+    -   **Edit protection:** Cannot edit Published, Scheduled, or Deleted posts
+    -   **Auto-recalculation:** Slug (if title changes), read time, excerpt
+    -   **Media tracking:** Re-extracts media IDs if content changes
+-   `PUT /api/v1/blog/{id}/status` - Change post status with strict transition rules
+    -   **Scheduled posts:** Require future `published_at` date
+    -   **Published posts:** Auto-set `published_at` to now() if not already set
+    -   Validates allowed transitions before updating
+-   `PUT /api/v1/blog/{id}/featured` - Toggle featured (max 5, Published posts only)
+    -   **Validation:** Only Published posts can be featured, max 5 featured posts allowed
 -   `POST /api/v1/blog/{id}/featured-image` - Upload featured image (PNG/JPG/JPEG, max 5MB)
--   `DELETE /api/v1/blog/{id}/featured-image` - Delete featured image
--   `DELETE /api/v1/blog/{id}` - Soft delete post
+    -   Uploads to Cloudinary folder: `atablog/posts/{id}/featured/`
+    -   Deletes old featured image automatically
+-   `DELETE /api/v1/blog/{id}/featured-image` - Delete featured image from Cloudinary and database
+-   `DELETE /api/v1/blog/{id}` - Soft delete post (changes status to Deleted)
 
 ### Media Management (Admin)
 
@@ -261,10 +285,20 @@ Base URL: `/api/v1`
 
 **No Authorization Required**
 
--   `GET /api/v1/posts` - List published posts with filters + featured_image_url
--   `GET /api/v1/posts/{slug}` - Get post by slug + increment view counter + featured_image_url
+-   `GET /api/v1/posts` - List published posts (status=Published only)
+    -   **Query Parameters:** `category` (slug), `tag` (slug), `search`, `sort` (latest|popular|featured), `featured` (boolean), `page` (default: 1), `size` (1-100, default: 20)
+    -   **Sort options:** latest (published_at DESC), popular (view_count DESC), featured (featured first)
+    -   Returns posts with `featured_image_url`, author name, category, tags
+-   `GET /api/v1/posts/{slug}` - Get post by slug with related posts
+    -   **Features:** Auto-increments view counter with rate limiting, returns related posts (same category, limit 5)
+    -   **View tracking:** IP-based (SHA256 hashed for privacy), 15-minute cooldown per IP per post
+    -   **Auto-cleanup:** Deletes view tracking records older than 24 hours
 
-View counter has 15-minute rate limit per IP (hashed with SHA256).
+**Rate Limiting Details:**
+
+-   IP addresses hashed with SHA256 for privacy
+-   15-minute cooldown between views from same IP per post
+-   Tracking records automatically cleaned up after 24 hours
 
 ## Architecture
 
@@ -278,19 +312,27 @@ View counter has 15-minute rate limit per IP (hashed with SHA256).
 2. **master_category** - Blog categories with slug
 3. **master_tag** - Blog tags with slug
 4. **media_file** - Media files metadata (Cloudinary paths)
-5. **blog_post** - Blog posts
-    - FK → `atablog.master_category`
-    - FK → `atablog.master_status`
-    - Cross-schema join → `pt_atams_indonesia.users` (author)
-6. **post_tag** - Many-to-many: posts ↔ tags
+5. **blog_post** - Blog posts (main table)
+    - Contains: title, slug, content (HTML), excerpt, featured_image, read_time, view_count, is_featured, metadata
+    - FK → `atablog.master_category` (RESTRICT)
+    - FK → `atablog.master_status` (RESTRICT)
+    - Cross-schema join → `pt_atams_indonesia.users` (author info)
+    - Column `bp_reference_urls`: JSON array of source URLs (for AI-generated posts)
+6. **post_tag** - Many-to-many junction: posts ↔ tags
     - FK → `atablog.blog_post` (CASCADE)
     - FK → `atablog.master_tag` (CASCADE)
-7. **post_media** - Media tracking (simplified for WYSIWYG)
+    - Unique constraint on (post_id, tag_id)
+    - Max 10 tags per post (validated in service layer)
+7. **post_media** - Media tracking junction: posts ↔ media files
     - FK → `atablog.blog_post` (CASCADE)
     - FK → `atablog.media_file` (RESTRICT)
-    - Only tracks which media is used in posts (no position/placement/caption)
-    - Images are embedded in HTML content with `data-media-id` attribute
-8. **blog_view_tracking** - View counter rate limiting (24h retention)
+    - Tracks which media is used in which posts
+    - No position/placement/caption data (all in HTML)
+    - Media IDs extracted from `data-media-id` attributes in HTML
+8. **blog_view_tracking** - View counter rate limiting
+    - Stores: post_id, ip_hash (SHA256), viewed_at
+    - 15-minute rate limit per IP per post
+    - Records older than 24 hours auto-deleted
 
 ### Layered Architecture
 
@@ -322,23 +364,56 @@ Request → Atlas SSO Auth → Endpoint → Service → Repository → Database 
 
 **Endpoint:** `POST /api/v1/blog/generate`
 
-**Two Modes:**
+**Request Parameters:**
 
-1. **Web Search Mode** (no URLs provided):
+-   `topic`: string (1-500 chars, required) - Main topic or title
+-   `reference_urls`: array of string (max 3, optional) - Source URLs
+-   `keywords`: array of string (max 10, optional) - Keywords to include
+-   `target_length`: enum (short|medium|long, default: medium)
+-   `category_id`: int (required) - Blog category
+-   `custom_instructions`: string (optional) - Additional instructions for AI
 
-    - Jina AI searches top 3 results
-    - Fetches and extracts content
-    - POE generates blog post
+**Target Length Mapping:**
 
-2. **Reference Mode** (URLs provided, max 3):
-    - Jina AI fetches URLs directly
-    - POE generates from references
+-   `short`: 500-800 words
+-   `medium`: 1200-1800 words (default)
+-   `long`: 2500-3500 words
 
-**Auto-calculation:**
+**Two Generation Modes:**
 
--   Read time (based on word count)
--   Excerpt (first 200 chars)
--   Status: Draft (requires manual review)
+1. **Reference Mode** (URLs provided):
+
+    - Fetches content from provided URLs (max 3)
+    - Uses Jina Reader to extract clean markdown
+    - Limits each source to 5000 characters
+    - Tracks used URLs in `bp_reference_urls`
+
+2. **Web Search Mode** (no URLs):
+    - Searches web using Jina Search API
+    - Gets top 3 relevant results
+    - Fetches content from each result URL
+    - Tracks searched URLs in `bp_reference_urls`
+
+**AI Generation Process:**
+
+1. Gather source content (via Reference or Search mode)
+2. Build system prompt with target word count, HTML formatting requirements, keywords
+3. Send to POE API (GPT-4o-mini) for generation
+4. Extract title from generated content (first line or h1)
+5. Generate unique slug from title (adds timestamp if duplicate)
+6. Calculate read time (200 words/minute for technical content)
+7. Extract excerpt (first 200 characters)
+8. **Always saves with Draft status** (requires manual review before publishing)
+9. Store reference URLs as JSON array
+
+**Configuration (from .env):**
+
+-   `POE_API_KEY`: POE API key
+-   `LLM_MODEL`: Model name (default: GPT-4o-mini)
+-   `LLM_MAX_TOKENS`: Max response tokens (default: 500)
+-   `LLM_TEMPERATURE`: Creativity level 0-1 (default: 0.7)
+-   `LLM_TIMEOUT`: Request timeout in seconds (default: 60)
+-   `JINA_API_KEY`: Jina AI API key for search and content fetching
 
 ### Status Transition Rules
 
@@ -347,67 +422,201 @@ Request → Atlas SSO Auth → Endpoint → Service → Repository → Database 
 ```
 Draft (1) → Published (2), Scheduled (3), Archived (4), Deleted (5)
 Published (2) → Archived (4), Deleted (5)
-Archived (4) → Draft (1), Published (2), Deleted (5)
 Scheduled (3) → Published (2), Archived (4), Deleted (5)
-Deleted (5) → [Terminal state]
+Archived (4) → Draft (1), Published (2), Deleted (5)
+Deleted (5) → [Terminal state - cannot be restored]
 ```
+
+**Status-Specific Behavior:**
+
+1. **Publishing (status_id = 2):**
+
+    - Auto-sets `published_at` to now() if not already set
+    - Do NOT send `published_at` in request body (will be ignored)
+
+2. **Scheduling (status_id = 3):**
+
+    - `published_at` is **REQUIRED** in request body
+    - Must be a future date
+    - Validation fails if date is in past
+
+3. **Other statuses:**
+    - `published_at` parameter is ignored
+
+**Transition Validation:**
+
+-   System checks if transition is allowed before updating
+-   Throws `BadRequestException` with details if invalid transition attempted
+-   Error includes current status, target status, and list of allowed transitions
 
 **Edit Protection:**
 
--   Can edit: Draft (1), Archived (4)
--   Cannot edit: Published (2), Scheduled (3), Deleted (5)
--   Exception: `ForbiddenException` with message
+-   **Can edit:** Draft (1), Archived (4) only
+-   **Cannot edit:** Published (2), Scheduled (3), Deleted (5)
+-   Attempting to edit protected post throws `ForbiddenException` with status name
+-   Exception message: "Cannot edit post with status '{status}'. Only 'Draft' or 'Archived' posts can be edited."
 
 ### Featured Posts Limit
 
-**Business Rule:**
+**Business Rules:**
 
--   Maximum 5 featured posts allowed
--   Only Published (2) posts can be featured
--   Validation at service layer
+-   Maximum 5 featured posts allowed at any time
+-   **Only Published (status_id = 2) posts can be featured**
+-   Draft/Scheduled/Archived/Deleted posts cannot be featured
+
+**Validation Process:**
+
+1. Check if post exists
+2. Verify post status is Published (2)
+    - If not Published: throws `BadRequestException` with status info
+3. If setting featured = true: check current featured count
+    - If count >= 5: throws `BadRequestException` with current count
+4. Update featured status
+
+**Error Messages:**
+
+-   "Only Published posts can be featured. Current status: {status_name}"
+-   "Maximum 5 featured posts allowed. You currently have {count}."
 
 ### View Counter Rate Limiting
 
-**Implementation:**
+**Implementation Details:**
 
--   Hash IP with SHA256 (privacy)
--   Store: `blog_view_tracking` table
--   Rate limit: 15 minutes per IP per post
--   Auto cleanup: Records > 24 hours deleted automatically
+-   **IP Hashing:** SHA256 for privacy protection (original IP not stored)
+-   **Storage:** `blog_view_tracking` table
+-   **Rate Limit:** 15 minutes cooldown per IP per post
+-   **Auto Cleanup:** Records older than 24 hours automatically deleted
+
+**Flow:**
+
+1. User visits post via `GET /api/v1/posts/{slug}`
+2. System hashes IP address with SHA256
+3. Checks if IP viewed this post in last 15 minutes
+4. If no recent view:
+    - Increment `bp_view_count` by 1
+    - Record view in `blog_view_tracking` table
+5. If recent view exists: skip increment
+6. After successful view tracking, cleanup old records (> 24 hours)
+
+**Privacy Features:**
+
+-   Original IP addresses never stored in database
+-   Only SHA256 hashes stored (irreversible)
+-   View tracking records automatically expire after 24 hours
 
 ### WYSIWYG Image Management
 
-**Frontend Integration (Tiptap):**
+**Frontend Integration Flow (Tiptap):**
 
 1. User inserts image in WYSIWYG editor
-2. Frontend uploads to `POST /api/v1/media/upload`
-3. Response contains `mf_id` and signed URL
-4. Frontend inserts `<img src="url" data-media-id="{mf_id}">`
-5. Backend auto-extracts media IDs from HTML on save
+2. Frontend uploads image to `POST /api/v1/media/upload`
+    - **Allowed formats:** JPG, PNG, WebP
+    - **Max size:** 5MB
+3. Backend uploads to Cloudinary folder: `atablog/media/`
+4. Response contains `mf_id` and signed URL (15-min expiry)
+5. Frontend inserts image in HTML with tracking attribute:
+    ```html
+    <img
+        src="https://cloudinary-signed-url"
+        data-media-id="123"
+        alt="description" />
+    ```
+6. When post is created/updated, backend automatically:
+    - Parses HTML content
+    - Extracts all `data-media-id` attributes using regex pattern
+    - Tracks media usage in `post_media` junction table
 
 **Media Tracking:**
 
--   `post_media` table only tracks which images are used in posts
--   All positioning, sizing, captions controlled by HTML/CSS in frontend
--   Images embedded directly in `bp_content` (no separate media array)
+-   `post_media` table tracks which media files are used in which posts
+-   All positioning, sizing, styling, and captions controlled by HTML/CSS in frontend
+-   Images embedded directly in `bp_content` HTML (no separate media array in response)
+-   Media tracking is for cleanup purposes (prevent deleting in-use media)
+
+**HTML Parser:**
+
+-   Pattern: `data-media-id=["']?(\d+)["']?`
+-   Extracts unique media IDs from HTML content
+-   Handles both quoted and unquoted attribute values
+-   Automatically called on post create and update
 
 ### Featured Image Management
 
-**Separate from content images:**
+**Separate from Content Images:**
 
--   Featured image = post thumbnail (`bp_featured_image` column)
--   Upload: `POST /api/v1/blog/{id}/featured-image` (PNG/JPG/JPEG, max 5MB)
--   Delete: `DELETE /api/v1/blog/{id}/featured-image`
--   All GET endpoints return `featured_image_url` (Cloudinary signed URL, 15-min expiry)
+Featured images serve as post thumbnails and are managed separately from content images.
+
+| Feature               | Featured Image                                    | Content Images (WYSIWYG)          |
+| --------------------- | ------------------------------------------------- | --------------------------------- |
+| **Purpose**           | Post thumbnail/preview                            | Embedded in content               |
+| **Storage**           | `bp_featured_image` column (Cloudinary public_id) | HTML `<img>` tags in `bp_content` |
+| **Upload Endpoint**   | `POST /api/v1/blog/{id}/featured-image`           | `POST /api/v1/media/upload`       |
+| **Delete Endpoint**   | `DELETE /api/v1/blog/{id}/featured-image`         | `DELETE /api/v1/media/{id}`       |
+| **Allowed Types**     | PNG, JPG, JPEG                                    | JPG, PNG, WebP                    |
+| **Max Size**          | 5MB                                               | 5MB                               |
+| **Tracking**          | Direct column reference                           | `post_media` junction table       |
+| **Cloudinary Folder** | `atablog/posts/{post_id}/featured/`               | `atablog/media/`                  |
+| **Filename Format**   | `featured-{uuid}`                                 | `{uuid}`                          |
+
+**Upload Process:**
+
+1. Validate file type (PNG/JPG/JPEG only) and size (max 5MB)
+2. Delete old featured image from Cloudinary (if exists)
+3. Generate unique filename: `featured-{uuid}`
+4. Upload to Cloudinary: `atablog/posts/{post_id}/featured/`
+5. Store Cloudinary `public_id` in `bp_featured_image` column
+6. Return response with signed URL (15-min expiry)
+
+**Response in All GET Endpoints:**
+
+```json
+{
+    "bp_featured_image": "atablog/posts/123/featured/featured-abc123",
+    "featured_image_url": "https://res.cloudinary.com/.../signed-url-15min"
+}
+```
+
+**Delete Process:**
+
+1. Check if featured image exists
+2. Delete from Cloudinary
+3. Set `bp_featured_image = NULL` in database
+4. Continue even if Cloudinary deletion fails (log error)
 
 ### Media Delete - Auto Cleanup
 
-**Cascade Flow:**
+**Endpoint:** `DELETE /api/v1/media/{media_id}`
 
-1. Delete from Cloudinary
-2. Set `bp_featured_image = NULL` in posts using it as featured image
-3. Delete `post_media` relations (CASCADE)
-4. Delete from `media_file` table
+**Automatic Cleanup Flow:**
+
+1. **Delete from Cloudinary:**
+
+    - Remove physical file from Cloudinary storage
+    - Continue cleanup even if Cloudinary deletion fails
+    - Error logged but doesn't stop database cleanup
+
+2. **Cleanup Featured Image References:**
+
+    - Find all posts using this media as featured image
+    - Set `bp_featured_image = NULL` for those posts
+    - Ensures no broken references in database
+
+3. **Delete Media Relations (CASCADE):**
+
+    - `post_media` junction table records automatically deleted
+    - Database CASCADE constraint handles this
+    - Removes all tracking records for this media
+
+4. **Delete Media Record:**
+    - Remove from `media_file` table
+    - Final cleanup of media metadata
+
+**No Usage Check:**
+
+-   Media can be deleted even if in use
+-   All references automatically cleaned up
+-   Frontend may show broken images until content is updated
+-   Recommended: Check media usage before deletion in frontend
 
 ## Security
 
@@ -421,16 +630,50 @@ Deleted (5) → [Terminal state]
 
 **Authorization Levels:**
 
--   **Public endpoints** (>= 1): View published posts
--   **Admin endpoints** (>= 50): Full CRUD operations
+| Level | Access            | Endpoints                                                                     |
+| ----- | ----------------- | ----------------------------------------------------------------------------- |
+| None  | Public access     | `/api/v1/posts/*` - Published posts only                                      |
+| 10+   | Read master data  | `/api/v1/master-status/*` - Read-only                                         |
+| 50+   | Full admin access | `/api/v1/blog/*`, `/api/v1/categories/*`, `/api/v1/tags/*`, `/api/v1/media/*` |
 
-**Usage:**
+**Endpoints by Authorization:**
+
+1. **Public (No Auth):**
+
+    - `GET /api/v1/posts` - List published posts
+    - `GET /api/v1/posts/{slug}` - Get post detail
+
+2. **Level 10+ (Read):**
+
+    - `GET /api/v1/master-status` - List statuses
+    - `GET /api/v1/master-status/{id}` - Get status detail
+
+3. **Level 50+ (Admin):**
+    - All blog CRUD operations
+    - AI blog generation
+    - Category and tag management
+    - Media upload and delete
+    - Featured image management
+    - Status transitions
+
+**Implementation:**
 
 ```python
-from atams.auth import require_min_role_level
+from atams.sso import create_atlas_client, create_auth_dependencies
 
-# Admin only
-@router.post("/blog", dependencies=[Depends(require_min_role_level(50))])
+# Initialize Atlas SSO client
+atlas_client = create_atlas_client(settings)
+
+# Create auth dependencies
+get_current_user, require_auth, require_min_role_level, require_role_level = create_auth_dependencies(atlas_client)
+
+# Usage in router
+api_router.include_router(
+    blog_admin.router,
+    prefix="/blog",
+    tags=["Blog - Admin"],
+    dependencies=[Depends(require_min_role_level(50))]
+)
 ```
 
 ### Response Encryption
@@ -502,13 +745,13 @@ atablog/
 │   │   ├── category_repository.py
 │   │   └── ...
 │   ├── services/                  # Business logic
-│   │   ├── blog_service.py        # Blog CRUD + featured image
-│   │   ├── blog_list_service.py   # Blog list with pagination
-│   │   ├── ai_service.py          # POE + Jina integration
-│   │   ├── media_service.py       # Cloudinary
-│   │   ├── category_service.py    # Category CRUD
-│   │   ├── tag_service.py         # Tag CRUD
-│   │   └── status_service.py      # Status list
+│   │   ├── blog_service.py        # Blog CRUD + featured image + status transitions
+│   │   ├── blog_list_service.py   # Blog list with pagination + batch tag loading
+│   │   ├── ai_blog_service.py     # AI blog generation (POE + Jina)
+│   │   ├── media_service.py       # Media upload/delete + Cloudinary integration
+│   │   ├── master_category_service.py  # Category CRUD
+│   │   ├── master_tag_service.py       # Tag CRUD
+│   │   └── master_status_service.py    # Status list (read-only)
 │   ├── api/
 │   │   ├── deps.py                # Auth dependencies
 │   │   └── v1/
@@ -521,12 +764,12 @@ atablog/
 │   │           ├── master_status.py   # Status endpoints
 │   │           └── media.py           # Media upload/delete
 │   ├── utils/
-│   │   ├── slug.py                # Slug generation
-│   │   ├── read_time.py           # Read time & excerpt
-│   │   ├── security.py            # IP hashing
-│   │   ├── cloudinary_helper.py   # Cloudinary operations
-│   │   ├── jina_helper.py         # Jina AI search/fetch
-│   │   └── html_parser.py         # Extract media IDs from HTML
+│   │   ├── slug.py                # Slug generation with uniqueness check
+│   │   ├── read_time.py           # Read time calculation (200 wpm) + excerpt extraction
+│   │   ├── security.py            # IP hashing (SHA256) for view tracking
+│   │   ├── cloudinary_helper.py   # Cloudinary upload/delete + signed URL generation
+│   │   ├── jina_helper.py         # Jina AI search + URL content fetching
+│   │   └── html_parser.py         # Extract media IDs from HTML data-media-id attributes
 │   └── main.py                    # FastAPI app
 ├── tests/
 │   ├── conftest.py
@@ -538,6 +781,193 @@ atablog/
 ├── docker-compose.yml
 └── README.md
 ```
+
+## Validation Rules Summary
+
+### Blog Post Validation
+
+| Field          | Rule                              | Error Message                          |
+| -------------- | --------------------------------- | -------------------------------------- |
+| `bp_title`     | 1-255 characters (required)       | "Title is required" / "Title too long" |
+| `bp_content`   | Minimum 1 character (required)    | "Content is required"                  |
+| `bp_excerpt`   | Maximum 500 characters (optional) | "Excerpt too long"                     |
+| `tag_ids`      | Maximum 10 tags per post          | "Maximum 10 tags per post"             |
+| `bp_slug`      | Auto-generated, must be unique    | Auto-adds timestamp if duplicate       |
+| `bp_status_id` | Must follow transition rules      | "Invalid status transition"            |
+
+### Media Validation
+
+| Field              | Rule                | Error Message                                |
+| ------------------ | ------------------- | -------------------------------------------- |
+| **Featured Image** | PNG, JPG, JPEG only | "Invalid file type. Allowed: PNG, JPG, JPEG" |
+| **Content Image**  | JPG, PNG, WebP only | "Invalid file type. Allowed: JPG, PNG, WebP" |
+| **File Size**      | Maximum 5MB         | "File too large. Maximum size: 5MB"          |
+
+### AI Generation Validation
+
+| Field            | Rule                        | Error Message              |
+| ---------------- | --------------------------- | -------------------------- |
+| `topic`          | 1-500 characters (required) | "Topic is required"        |
+| `reference_urls` | Maximum 3 URLs              | "Maximum 3 reference URLs" |
+| `keywords`       | Maximum 10 keywords         | "Maximum 10 keywords"      |
+| `target_length`  | Enum: short, medium, long   | "Invalid target length"    |
+
+### Category & Tag Validation
+
+| Field                 | Rule                     | Error Message         |
+| --------------------- | ------------------------ | --------------------- |
+| `mc_name` / `mt_name` | Required, must be unique | "Name already exists" |
+| `mc_slug` / `mt_slug` | Auto-generated from name | N/A                   |
+
+## Error Handling
+
+### Error Response Format
+
+All errors return consistent JSON format:
+
+```json
+{
+    "detail": "Error message describing what went wrong"
+}
+```
+
+### Common HTTP Status Codes
+
+| Code | Exception             | When It Occurs                              | Example                              |
+| ---- | --------------------- | ------------------------------------------- | ------------------------------------ |
+| 400  | `BadRequestException` | Validation failed or business rule violated | "Maximum 5 featured posts allowed"   |
+| 403  | `ForbiddenException`  | Action not allowed due to state             | "Cannot edit Published post"         |
+| 404  | `NotFoundException`   | Resource not found                          | "Blog post not found"                |
+| 401  | `Unauthorized`        | Invalid or missing auth token               | "Invalid authentication credentials" |
+| 422  | `ValidationError`     | Request body validation failed              | "Field required" (Pydantic)          |
+
+### Business Logic Errors
+
+**Status Transition Errors:**
+
+```json
+{
+    "detail": "Invalid status transition from 'Published' to 'Draft'. Allowed transitions: Archived, Deleted"
+}
+```
+
+**Edit Protection Errors:**
+
+```json
+{
+    "detail": "Cannot edit post with status 'Published'. Only 'Draft' or 'Archived' posts can be edited."
+}
+```
+
+**Featured Post Limit Errors:**
+
+```json
+{
+    "detail": "Maximum 5 featured posts allowed. You currently have 5."
+}
+```
+
+**Featured Post Status Errors:**
+
+```json
+{
+    "detail": "Only Published posts can be featured. Current status: Draft"
+}
+```
+
+**Scheduled Post Validation Errors:**
+
+```json
+{
+    "detail": "published_at is required for scheduled posts and must be a future date"
+}
+```
+
+### Validation Errors (422)
+
+Pydantic validation errors return detailed field-level information:
+
+```json
+{
+    "detail": [
+        {
+            "loc": ["body", "bp_title"],
+            "msg": "field required",
+            "type": "value_error.missing"
+        },
+        {
+            "loc": ["body", "tag_ids"],
+            "msg": "ensure this value has at most 10 items",
+            "type": "value_error.list.max_items"
+        }
+    ]
+}
+```
+
+## Performance Optimizations
+
+### N+1 Query Prevention
+
+**Problem:** Loading tags for multiple posts causes N+1 queries (1 query for posts + N queries for tags)
+
+**Solution:** Batch loading in `blog_list_service.py`
+
+```python
+# Get all post IDs
+post_ids = [post["bp_id"] for post in results]
+
+# Single query to load all tags for all posts
+tags_results = self.blog_repo.get_tags_for_posts(db, post_ids)
+
+# Group tags by post_id in memory
+tags_by_post = {}
+for tag_row in tags_results:
+    post_id = tag_row["pt_post_id"]
+    if post_id not in tags_by_post:
+        tags_by_post[post_id] = []
+    tags_by_post[post_id].append(tag_row)
+```
+
+**Result:** O(1) queries instead of O(N+1)
+
+### Cloudinary Signed URLs
+
+-   **Expiry:** 15 minutes (configurable)
+-   **Purpose:** Prevent unauthorized access to media files
+-   **Generation:** On-demand for each request
+-   **Caching:** Not cached (generated fresh each time for security)
+
+### View Counter Optimization
+
+-   **Rate Limiting:** Prevents multiple increments from same IP
+-   **Auto Cleanup:** Removes records older than 24 hours to keep table small
+-   **Hashed IPs:** SHA256 hashing for privacy (irreversible)
+
+## API Interactive Documentation
+
+FastAPI provides interactive API documentation with live testing:
+
+-   **Swagger UI:** http://localhost:8000/docs
+-   **ReDoc:** http://localhost:8000/redoc
+
+### OpenAPI Examples
+
+The API includes detailed request examples for complex endpoints:
+
+**Status Update Examples (5 scenarios):**
+
+1. Publish post (auto-set published_at)
+2. Schedule post (require future published_at)
+3. Archive post
+4. Set to Draft (only from Archived)
+5. Delete post (terminal state)
+
+**Try it out in Swagger UI:**
+
+-   Select endpoint
+-   Choose example from dropdown
+-   Click "Try it out"
+-   Execute request with pre-filled data
 
 ## Support
 

@@ -28,15 +28,19 @@ A comprehensive Point of Sale (POS) API system built with FastAPI, featuring mul
 
 ## Key Features
 
--   **Multi-Tenant Architecture**: Complete merchant isolation with per-tenant configuration
--   **Product Management**: Categories, variants, pricing, and inventory tracking with image attachments via Cloudinary
--   **Order Management**: Complete order lifecycle from creation to payment with order items and customer details
--   **Payment Integration**: Midtrans payment gateway integration with transaction logging
--   **Promotions**: Flexible promotion system with product-specific discounts
--   **Customer Authentication**: Magic link and OTP-based authentication for customers via email
--   **Table Management**: Location-based ordering for restaurant/cafe businesses
--   **Atlas SSO Integration**: Enterprise authentication via ATAMS (Atlas Microservices)
--   **Role-Based Access Control**: Admin (level 100) and Officer (level 10) roles
+-   **Multi-Tenant Architecture**: Complete merchant isolation with per-tenant configuration and Midtrans credentials
+-   **Dual Authentication System**: Passwordless customer auth (Magic Link/OTP) + Atlas SSO for staff with role-based access control
+-   **Product Management**: Categories, pricing, tax/service charge configuration, and image uploads via Cloudinary (thumbnail + detail images)
+-   **Order Management**: Complete order lifecycle with automatic customer creation, product snapshots, and tax/service charge calculation
+-   **Payment Integration**:
+    -   Midtrans Snap (QRIS, credit card, e-wallet, bank transfer)
+    -   Cash payment processing with automatic change calculation
+    -   Rounded amounts for easier cash handling
+    -   Transaction management (cancel, expire, refund)
+-   **Promotions**: Flexible promotion system with 3 discount types (percent, nominal, override price)
+-   **Email Notifications**: Magic links, OTP codes, and payment receipts with HTML templates
+-   **Table/Location Management**: Multi-location support for restaurant, barbershop, car wash, etc.
+-   **Role-Based Access Control**: Admin (level 10) and Officer (level 100) with granular permissions
 
 ## Technology Stack
 
@@ -302,7 +306,7 @@ Customer authentication uses passwordless methods (Magic Link & OTP). For staff 
 
 #### POST /api/v1/auth/customer/request-magic-link
 
-Request magic link for customer login via email.
+Request magic link for customer login via email. Link expires in 15 minutes.
 
 **Request Body:**
 
@@ -312,9 +316,11 @@ Request magic link for customer login via email.
 }
 ```
 
+**Response:** Always returns success (prevents email enumeration)
+
 #### POST /api/v1/auth/customer/verify-magic-link
 
-Verify magic link token and receive JWT.
+Verify magic link token and receive JWT access token.
 
 **Request Body:**
 
@@ -324,9 +330,23 @@ Verify magic link token and receive JWT.
 }
 ```
 
+**Response:**
+
+```json
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "customer": {
+        "cu_id": 1,
+        "cu_email": "customer@example.com",
+        "cu_name": "John Doe"
+    }
+}
+```
+
 #### POST /api/v1/auth/customer/request-otp
 
-Request 6-digit OTP code via email.
+Request 6-digit OTP code via email. OTP expires in 5 minutes.
 
 **Request Body:**
 
@@ -336,9 +356,11 @@ Request 6-digit OTP code via email.
 }
 ```
 
+**Response:** Always returns success (prevents email enumeration)
+
 #### POST /api/v1/auth/customer/verify-otp
 
-Verify OTP and get JWT token.
+Verify OTP and get JWT token (valid for 7 days).
 
 **Request Body:**
 
@@ -349,11 +371,38 @@ Verify OTP and get JWT token.
 }
 ```
 
+**Response:**
+
+```json
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "customer": {
+        "cu_id": 1,
+        "cu_email": "customer@example.com",
+        "cu_name": "John Doe"
+    }
+}
+```
+
 #### GET /api/v1/auth/customer/me
 
 Get current customer information from JWT token.
 
 **Authorization:** Required (Customer JWT token)
+
+**Response:**
+
+```json
+{
+    "cu_id": 1,
+    "me_id": 1,
+    "cu_email": "customer@example.com",
+    "cu_name": "John Doe",
+    "cu_phone": "081234567890",
+    "created_at": "2025-01-01T00:00:00Z"
+}
+```
 
 ---
 
@@ -419,35 +468,95 @@ Delete merchant.
 
 #### GET /api/v1/products
 
-List all products for the authenticated merchant.
+List all products for the authenticated merchant (public endpoint).
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** None required
 
 **Query Parameters:**
 
 -   `search`: Filter by name or description (optional)
--   `category_id`: Filter by category (optional)
+-   `pc_id`: Filter by category ID (optional)
 -   `skip`: Offset pagination (default: 0)
 -   `limit`: Records per page (1-1000, default: 100)
 
+**Response:**
+
+```json
+[
+    {
+        "pr_id": 1,
+        "pr_name": "Nasi Goreng",
+        "pr_desc": "Delicious fried rice",
+        "pr_type": "goods",
+        "pr_base_price": 25000.0,
+        "pr_tax_percent": 10.0,
+        "pr_service_charge_percent": 5.0,
+        "pr_is_available": true,
+        "pr_is_active": true,
+        "pc_id": 1,
+        "pr_image_path": "https://res.cloudinary.com/.../thumbnail.jpg",
+        "thumbnail": {
+            "pa_id": 1,
+            "pa_cloudinary_url": "https://res.cloudinary.com/.../thumbnail.jpg"
+        },
+        "detail_images": [
+            {
+                "pa_id": 2,
+                "pa_cloudinary_url": "https://res.cloudinary.com/.../detail1.jpg",
+                "pa_sort_order": 0
+            }
+        ]
+    }
+]
+```
+
+#### GET /api/v1/products/{pr_id}
+
+Get single product details with images.
+
+**Authorization:** None required
+
 #### POST /api/v1/products
 
-Create new product.
+Create new product with optional image uploads.
 
-**Authorization:** Admin (level >= 100)
+**Authorization:** Admin (level >= 10)
 
-**Request Body:**
+**Request:** Multipart form-data
+
+**Form Fields:**
+
+-   `data` (JSON string): Product data
+-   `thumbnail` (file, optional): Thumbnail image (JPG/JPEG/PNG, max 5MB)
+-   `detail_images` (files, optional): Up to 3 detail images (JPG/JPEG/PNG, max 10MB each)
+
+**Example `data` field:**
 
 ```json
 {
-    "pr_name": "Product Name",
-    "pr_description": "Product description",
-    "pr_price": 50000,
-    "pr_stock": 100,
-    "pc_id": 1,
-    "pr_is_available": true
+    "pr_name": "Nasi Goreng",
+    "pr_desc": "Delicious fried rice",
+    "pr_type": "goods",
+    "pr_base_price": 25000.0,
+    "pr_tax_percent": 10.0,
+    "pr_service_charge_percent": 5.0,
+    "pr_is_available": true,
+    "pr_is_active": true,
+    "pc_id": 1
 }
 ```
+
+**Features:**
+
+-   Automatic Cloudinary upload
+-   Transaction rollback on upload failure
+-   Sort order assigned automatically (0, 1, 2)
+
+#### PUT /api/v1/products/{pr_id}
+
+Update existing product.
+
+**Authorization:** Admin (level >= 10)
 
 ---
 
@@ -471,15 +580,85 @@ Create new category.
 
 ### Product Attachments
 
-**Base Path:** `/api/v1/product-attachments`
+**Base Path:** `/api/v1/products/{pr_id}`
 
-#### POST /api/v1/product-attachments
+#### POST /api/v1/products/{pr_id}/thumbnail
 
-Upload product image to Cloudinary.
+Upload or replace product thumbnail image.
 
-**Authorization:** Admin (level >= 100)
+**Authorization:** Admin (level >= 10)
 
-**Request:** Multipart form data with image file
+**Request:** Multipart form-data with `file` field
+
+**File Requirements:**
+
+-   Format: JPG, JPEG, PNG
+-   Max size: 5MB
+
+**Response:**
+
+```json
+{
+    "pa_id": 1,
+    "pr_id": 1,
+    "pa_type": "thumbnail",
+    "pa_cloudinary_public_id": "atapos/products/1/thumbnail",
+    "pa_cloudinary_url": "https://res.cloudinary.com/.../thumbnail.jpg"
+}
+```
+
+#### DELETE /api/v1/products/{pr_id}/thumbnail
+
+Delete product thumbnail image.
+
+**Authorization:** Admin (level >= 10)
+
+#### POST /api/v1/products/{pr_id}/detail-images
+
+Upload product detail images (bulk upload, max 3).
+
+**Authorization:** Admin (level >= 10)
+
+**Request:** Multipart form-data with multiple `files` fields
+
+**File Requirements:**
+
+-   Format: JPG, JPEG, PNG
+-   Max size per file: 10MB
+-   Max files: 3 total (including existing)
+
+**Response:**
+
+```json
+[
+    {
+        "pa_id": 2,
+        "pa_type": "detail",
+        "pa_cloudinary_url": "https://res.cloudinary.com/.../detail1.jpg",
+        "pa_sort_order": 0
+    },
+    {
+        "pa_id": 3,
+        "pa_type": "detail",
+        "pa_cloudinary_url": "https://res.cloudinary.com/.../detail2.jpg",
+        "pa_sort_order": 1
+    }
+]
+```
+
+#### DELETE /api/v1/products/{pr_id}/detail-images
+
+Delete product detail images (bulk delete).
+
+**Authorization:** Admin (level >= 10)
+
+**Request Body:**
+
+```json
+{
+    "pa_ids": [2, 3]
+}
+```
 
 ---
 
@@ -489,33 +668,70 @@ Upload product image to Cloudinary.
 
 #### GET /api/v1/promotions
 
-List all promotions.
+List all active promotions (public endpoint).
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** None required
+
+**Response:**
+
+```json
+[
+    {
+        "pm_id": 1,
+        "pm_name": "Weekend 20% Off",
+        "pm_discount_type": "percent",
+        "pm_discount_value": 20.0,
+        "pm_start_at": "2025-10-27T00:00:00Z",
+        "pm_end_at": "2025-10-29T23:59:59Z",
+        "pm_is_active": true,
+        "products": [
+            {
+                "pr_id": 1,
+                "pr_name": "Nasi Goreng",
+                "pr_base_price": 25000.0
+            }
+        ]
+    }
+]
+```
+
+#### GET /api/v1/promotions/{pm_id}
+
+Get single promotion details with products.
+
+**Authorization:** None required
 
 #### POST /api/v1/promotions
 
-Create new promotion with items.
+Create new promotion with product assignments.
 
-**Authorization:** Admin (level >= 100)
+**Authorization:** Admin (level >= 10)
 
 **Request Body:**
 
 ```json
 {
-    "pm_name": "Weekend Special",
-    "pm_description": "50% off selected items",
-    "pm_start_date": "2025-01-01T00:00:00Z",
-    "pm_end_date": "2025-01-31T23:59:59Z",
+    "pm_name": "Weekend 20% Off",
+    "pm_discount_type": "percent",
+    "pm_discount_value": 20.0,
+    "pm_start_at": "2025-10-27T00:00:00Z",
+    "pm_end_at": "2025-10-29T23:59:59Z",
     "pm_is_active": true,
-    "items": [
-        {
-            "pr_id": 1,
-            "pmi_discount_amount": 25000
-        }
-    ]
+    "product_ids": [1, 2, 3]
 }
 ```
+
+**Promotion Types:**
+
+-   `percent`: Percentage discount (e.g., 20% off)
+-   `nominal`: Fixed amount discount (e.g., Rp 10,000 off)
+-   `override_price`: Set new fixed price (e.g., Rp 50,000)
+
+#### PUT /api/v1/promotions/{pm_id}
+
+Update existing promotion.
+
+**Authorization:** Admin (level >= 10)
 
 ---
 
@@ -525,15 +741,62 @@ Create new promotion with items.
 
 #### GET /api/v1/table-locations
 
-List all table locations for restaurant/cafe.
+List all table locations (public endpoint). Used for restaurant tables, service stations, zones, etc.
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** None required
+
+**Response:**
+
+```json
+[
+    {
+        "tl_id": 1,
+        "tl_number": "A1",
+        "tl_name": "Table A1 - Window",
+        "tl_capacity": 4,
+        "tl_zone": "Indoor",
+        "tl_is_active": true
+    }
+]
+```
+
+#### GET /api/v1/table-locations/{tl_id}
+
+Get single table location details.
+
+**Authorization:** None required
 
 #### POST /api/v1/table-locations
 
 Create new table location.
 
-**Authorization:** Admin (level >= 100)
+**Authorization:** Admin (level >= 10)
+
+**Request Body:**
+
+```json
+{
+    "tl_number": "A1",
+    "tl_name": "Table A1 - Window",
+    "tl_capacity": 4,
+    "tl_zone": "Indoor",
+    "tl_is_active": true
+}
+```
+
+**Use Cases:**
+
+-   Restaurant tables (dine-in)
+-   Barbershop chairs
+-   Car wash bays
+-   Spa treatment rooms
+-   Store zones/sections
+
+#### PUT /api/v1/table-locations/{tl_id}
+
+Update existing table location.
+
+**Authorization:** Admin (level >= 10)
 
 ---
 
@@ -545,13 +808,50 @@ Create new table location.
 
 List all customers for the merchant.
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** Officer + Admin (level >= 100)
+
+**Query Parameters:**
+
+-   `search`: Filter by name, email, or phone (optional)
+-   `skip`: Offset pagination (default: 0)
+-   `limit`: Records per page (1-1000, default: 100)
+
+#### GET /api/v1/customers/{cu_id}
+
+Get single customer details.
+
+**Authorization:** Officer + Admin (level >= 100)
 
 #### POST /api/v1/customers
 
-Create new customer.
+Create new customer (public registration).
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** None required
+
+**Request Body:**
+
+```json
+{
+    "cu_email": "customer@example.com",
+    "cu_name": "John Doe",
+    "cu_phone": "081234567890"
+}
+```
+
+#### PUT /api/v1/customers/me
+
+Update own customer profile.
+
+**Authorization:** Customer JWT token
+
+**Request Body:**
+
+```json
+{
+    "cu_name": "John Doe",
+    "cu_phone": "081234567890"
+}
+```
 
 ---
 
@@ -561,14 +861,45 @@ Create new customer.
 
 #### GET /api/v1/orders
 
-List all orders for the merchant.
+List all orders for the merchant (sorted by most recent first).
 
-**Authorization:** Staff (level >= 10)
+**Authorization:** Officer + Admin (level >= 100)
 
 **Query Parameters:**
 
 -   `skip`: Offset pagination (default: 0)
 -   `limit`: Records per page (1-1000, default: 100)
+
+**Response:**
+
+```json
+[
+    {
+        "oh_id": 123,
+        "oh_order_number": "INV-20251108-0001",
+        "oh_order_type": "dine_in",
+        "oh_guest_count": 2,
+        "oh_subtotal_amount": 50000.0,
+        "oh_discount_amount": 5000.0,
+        "oh_tax_amount": 4500.0,
+        "oh_service_charge_amount": 2250.0,
+        "oh_total_amount": 51750.0,
+        "oh_rounded_amount": 51800.0,
+        "oh_payment_status": "settlement",
+        "oh_payment_type": "cash",
+        "oh_paid_at": "2025-11-08T10:30:00Z",
+        "customer": {
+            "cu_id": 1,
+            "cu_name": "John Doe"
+        },
+        "table_location": {
+            "tl_id": 1,
+            "tl_name": "Table A1"
+        },
+        "created_at": "2025-11-08T10:25:00Z"
+    }
+]
+```
 
 #### GET /api/v1/orders/my-orders
 
@@ -580,27 +911,78 @@ Get order history for authenticated customer.
 
 -   `skip`: Offset pagination (default: 0)
 -   `limit`: Records per page (1-1000, default: 100)
--   `status`: Filter by payment status (optional)
+-   `oh_payment_status`: Filter by payment status (optional: pending, settlement, cancel, etc.)
 
 #### GET /api/v1/orders/{oh_id}
 
-Get single order by ID with all items.
+Get single order by ID with all items and details.
 
-**Authorization:** Staff (level >= 10) or Customer (own order only)
+**Authorization:** Officer + Admin (level >= 100) or Customer (own order only)
+
+**Response:**
+
+```json
+{
+    "oh_id": 123,
+    "oh_order_number": "INV-20251108-0001",
+    "oh_order_type": "dine_in",
+    "oh_guest_count": 2,
+    "oh_subtotal_amount": 50000.0,
+    "oh_discount_amount": 5000.0,
+    "oh_tax_amount": 4500.0,
+    "oh_service_charge_amount": 2250.0,
+    "oh_total_amount": 51750.0,
+    "oh_rounded_amount": 51800.0,
+    "oh_payment_status": "settlement",
+    "oh_payment_type": "qris",
+    "oh_midtrans_order_id": "INV-20251108-0001",
+    "oh_midtrans_transaction_id": "abc123-def456",
+    "oh_qris_string": "00020101021126...",
+    "oh_qris_acquirer": "gopay",
+    "oh_paid_at": "2025-11-08T10:30:00Z",
+    "oh_notes": "Window seat please",
+    "customer": {
+        "cu_id": 1,
+        "cu_email": "customer@example.com",
+        "cu_name": "John Doe",
+        "cu_phone": "081234567890"
+    },
+    "table_location": {
+        "tl_id": 1,
+        "tl_number": "A1",
+        "tl_name": "Table A1 - Window"
+    },
+    "items": [
+        {
+            "oi_id": 1,
+            "pr_id": 1,
+            "oi_product_name_snapshot": "Nasi Goreng",
+            "oi_product_type": "goods",
+            "oi_qty": 2,
+            "oi_base_price": 25000.0,
+            "oi_final_price": 22500.0,
+            "oi_line_subtotal": 45000.0,
+            "oi_notes": "Extra spicy"
+        }
+    ],
+    "created_at": "2025-11-08T10:25:00Z"
+}
+```
 
 #### POST /api/v1/orders
 
-Create new order with items.
+Create new order with items. Supports both customer self-ordering and staff-assisted ordering.
 
-**Authorization:** Staff (level >= 10) or Customer JWT
+**Authorization:** Officer + Admin (level >= 100) or Customer JWT
 
-**For Customers:**
+**For Customer Self-Ordering:**
 
 ```json
 {
     "oh_order_type": "dine_in",
     "tl_id": 1,
-    "oh_notes": "Optional notes",
+    "oh_guest_count": 2,
+    "oh_notes": "Window seat please",
     "items": [
         {
             "pr_id": 1,
@@ -611,32 +993,180 @@ Create new order with items.
 }
 ```
 
-**For Staff (can specify customer):**
+**For Staff (can specify customer via email or ID):**
 
 ```json
 {
-    "oh_order_type": "dine_in",
     "cu_email": "customer@example.com",
     "cu_name": "John Doe",
-    "items": [...]
+    "cu_phone": "081234567890",
+    "oh_order_type": "dine_in",
+    "tl_id": 1,
+    "oh_guest_count": 2,
+    "items": [
+        {
+            "pr_id": 1,
+            "oi_qty": 2,
+            "oi_notes": "Extra spicy"
+        }
+    ]
 }
 ```
 
+**Order Types:**
+
+-   `dine_in`: Restaurant/cafe table service
+-   `takeaway`: Order for pickup
+-   `delivery`: Order for delivery
+-   `service_job`: Service-based businesses (barbershop, car wash, etc.)
+-   `walk_in`: Quick retail purchase
+
+**Features:**
+
+-   Auto-creates customer if email provided
+-   Applies active promotions automatically
+-   Calculates tax and service charge per item
+-   Stores product snapshots for historical pricing
+-   Generates unique order number: `INV-YYYYMMDD-XXXX`
+-   **NEW:** Calculates rounded amount for easier cash handling
+
 #### POST /api/v1/orders/{oh_id}/create-payment
 
-Generate Midtrans Snap token for payment.
+Generate Midtrans Snap payment token and redirect URL.
 
-**Authorization:** Staff (level >= 10) or Customer (own order only)
+**Authorization:** Officer + Admin (level >= 100) or Customer (own order only)
 
-Returns `token` and `redirect_url` for payment processing.
+**Response:**
+
+```json
+{
+    "token": "66e4fa55-fdac-4ef9-91b5-733b97d1b862",
+    "redirect_url": "https://app.sandbox.midtrans.com/snap/v2/vtweb/66e4fa55-fdac-4ef9-91b5-733b97d1b862"
+}
+```
+
+**Payment Methods Available:**
+
+-   QRIS (GoPay, OVO, DANA, ShopeePay, LinkAja)
+-   Credit/Debit Card
+-   Bank Transfer (BCA, Mandiri, BNI, BRI, Permata)
+-   E-wallet direct (GoPay, ShopeePay)
+-   Alfamart/Indomaret
+-   Kredivo, Akulaku
+
+#### POST /api/v1/orders/{oh_id}/pay-cash
+
+Process cash payment (staff-only). **NEW FEATURE**
+
+**Authorization:** Officer + Admin (level >= 100)
+
+**Request Body:**
+
+```json
+{
+    "amount_paid": 60000.0
+}
+```
+
+**Response:**
+
+```json
+{
+    "oh_id": 123,
+    "oh_order_number": "INV-20251108-0001",
+    "oh_total_amount": 51750.0,
+    "oh_rounded_amount": 51800.0,
+    "amount_paid": 60000.0,
+    "change_amount": 8200.0,
+    "oh_payment_status": "settlement",
+    "oh_paid_at": "2025-11-08T10:30:00Z"
+}
+```
+
+**Features:**
+
+-   Uses rounded amount (nearest Rp 100) for easier cash handling
+-   Automatic change calculation
+-   Validates sufficient payment
+-   Updates order status to settlement
+-   Creates payment log with audit trail
 
 #### POST /api/v1/orders/{oh_id}/check-status
 
-Check payment status from Midtrans.
+Check current payment status from Midtrans.
 
-**Authorization:** Staff (level >= 10) or Customer (own order only)
+**Authorization:** Officer + Admin (level >= 100) or Customer (own order only)
 
-Returns current payment status and Midtrans transaction details.
+**Response:**
+
+```json
+{
+    "oh_payment_status": "settlement",
+    "oh_midtrans_transaction_id": "abc123-def456",
+    "oh_payment_type": "qris",
+    "oh_paid_at": "2025-11-08T10:30:00Z",
+    "midtrans_response": {
+        "status_code": "200",
+        "transaction_status": "settlement",
+        "fraud_status": "accept"
+    }
+}
+```
+
+#### POST /api/v1/orders/{oh_id}/cancel
+
+Cancel pending payment (before payment is made).
+
+**Authorization:** Officer + Admin (level >= 100) or Customer (own order only)
+
+**Requirements:**
+
+-   Order payment status must be `pending`
+-   Cannot cancel already paid orders
+
+#### POST /api/v1/orders/{oh_id}/expire
+
+Manually expire pending payment (staff-only).
+
+**Authorization:** Officer + Admin (level >= 100)
+
+**Requirements:**
+
+-   Order payment status must be `pending`
+
+#### POST /api/v1/orders/{oh_id}/refund
+
+Refund settled payment (admin-only).
+
+**Authorization:** Admin (level >= 10)
+
+**Request Body:**
+
+```json
+{
+    "amount": 51750.0,
+    "reason": "Customer request"
+}
+```
+
+**Refund Types:**
+
+-   Full refund: Omit `amount` or use full order total
+-   Partial refund: Specify `amount`
+
+#### POST /api/v1/orders/webhooks/midtrans
+
+Midtrans payment webhook notification (public endpoint for Midtrans servers).
+
+**Authorization:** None (verified via SHA512 signature)
+
+**Features:**
+
+-   Verifies Midtrans signature
+-   Updates order payment status
+-   Sends receipt email on successful payment
+-   Logs all notifications for audit trail
+-   Handles all payment methods (QRIS, card, bank transfer, etc.)
 
 ## Architecture
 
@@ -672,20 +1202,27 @@ Returns current payment status and Midtrans transaction details.
 
     - `pa_id` (PK): Attachment ID
     - `pr_id` (FK): Product reference
-    - `pa_url`: Cloudinary image URL
+    - `me_id` (FK): Merchant reference
+    - `pa_type`: thumbnail, detail
+    - `pa_cloudinary_public_id`: Cloudinary public ID for deletion
+    - `pa_cloudinary_url`: Full Cloudinary image URL
+    - `pa_sort_order`: 0, 1, 2 (for detail images)
 
 5. **promotion** - Promotional campaigns
 
     - `pm_id` (PK): Promotion ID
     - `me_id` (FK): Merchant reference
-    - `pm_start_date`, `pm_end_date`: Validity period
+    - `pm_name`: Promotion name
+    - `pm_discount_type`: percent, nominal, override_price
+    - `pm_discount_value`: Discount value
+    - `pm_start_at`, `pm_end_at`: Validity period
+    - `pm_is_active`: Active flag
 
 6. **promotion_item** - Products in promotions
 
-    - `pmi_id` (PK): Promotion item ID
+    - `pi_id` (PK): Promotion item ID
     - `pm_id` (FK): Promotion reference
     - `pr_id` (FK): Product reference
-    - `pmi_discount_amount`: Discount value
 
 7. **table_location** - Physical tables/locations
 
@@ -703,25 +1240,58 @@ Returns current payment status and Midtrans transaction details.
 
     - `oh_id` (PK): Order ID
     - `me_id` (FK): Merchant reference
-    - `tl_id` (FK): Table reference
-    - `cu_id` (FK): Customer reference
-    - `oh_status`: pending, confirmed, completed, cancelled
-    - `oh_total_amount`: Order total
-    - `oh_payment_status`: pending, paid, failed
+    - `u_id`: Staff user ID (nullable)
+    - `cu_id` (FK): Customer reference (nullable)
+    - `tl_id` (FK): Table reference (nullable)
+    - `oh_order_number`: Unique order number (INV-YYYYMMDD-XXXX)
+    - `oh_order_type`: dine_in, takeaway, delivery, service_job, walk_in
+    - `oh_guest_count`: Number of guests
+    - `oh_subtotal_amount`: Subtotal before discounts/taxes
+    - `oh_discount_amount`: Total discounts applied
+    - `oh_tax_amount`: Total tax
+    - `oh_service_charge_amount`: Total service charge
+    - `oh_total_amount`: Final total amount
+    - **`oh_rounded_amount`**: Rounded total (nearest Rp 100) **NEW**
+    - `oh_payment_status`: pending, settlement, cancel, deny, expire, failure, refund
+    - `oh_fraud_status`: Midtrans fraud status
+    - `oh_payment_type`: Payment method (qris, gopay, credit_card, cash, etc.)
+    - `oh_midtrans_order_id`: Midtrans order ID
+    - `oh_midtrans_transaction_id`: Midtrans transaction ID
+    - `oh_midtrans_transaction_time`: Midtrans transaction time
+    - `oh_midtrans_transaction_status`: Midtrans status
+    - `oh_qris_string`: QRIS string (if QRIS payment)
+    - `oh_qris_acquirer`: QRIS acquirer (gopay, linkaja, etc.)
+    - `oh_qris_actions`: JSONB with QRIS actions
+    - `oh_expired_at`: Payment expiration time
+    - `oh_paid_at`: Payment completion time
+    - `oh_notes`: Order notes
 
 10. **order_item** - Order line items
 
     - `oi_id` (PK): Order item ID
     - `oh_id` (FK): Order header reference
     - `pr_id` (FK): Product reference
-    - `oi_quantity`, `oi_price`: Item details
+    - `oi_product_name_snapshot`: Product name at time of order
+    - `oi_product_type`: goods, service
+    - `oi_qty`: Quantity
+    - `oi_base_price`: Original product price
+    - `oi_final_price`: Price after promotions
+    - `oi_line_subtotal`: Final price × quantity
+    - `oi_notes`: Item notes
 
-11. **payment_log** - Payment transaction logs
-    - `pl_id` (PK): Payment log ID
+11. **payment_log** - Payment transaction audit logs
+    - `py_id` (PK): Payment log ID
     - `oh_id` (FK): Order reference
-    - `pl_midtrans_order_id`: Midtrans transaction ID
-    - `pl_status`: pending, success, failed
-    - `pl_response_json`: Full Midtrans response
+    - `me_id` (FK): Merchant reference
+    - `py_event_type`: charge, notification, status_check, refund, cancel, expire, **cash** **NEW**
+    - `py_order_id`: Midtrans order ID
+    - `py_transaction_id`: Midtrans transaction ID
+    - `py_transaction_status`: Transaction status
+    - `py_fraud_status`: Fraud detection status
+    - `py_payment_type`: Payment method
+    - `py_gross_amount`: Payment amount
+    - `py_signature_key`: Midtrans signature (for verification)
+    - `py_raw_payload`: JSONB with full Midtrans response
 
 ### Layered Architecture
 
@@ -753,15 +1323,82 @@ All data is isolated per merchant (`me_id`). Staff users authenticated via Atlas
 
 ### Order Workflow
 
-1. Customer places order (pending status)
-2. Staff confirms order (confirmed status)
-3. Payment processed via Midtrans
-4. On successful payment, order marked as paid
-5. Order completed when fulfilled
+**Digital Payment Flow (Midtrans Snap):**
+
+1. Customer/staff creates order → Status: `pending`
+2. Generate Snap payment token via `/create-payment`
+3. Customer pays via Snap (QRIS, card, e-wallet, bank transfer, etc.)
+4. Midtrans sends webhook notification
+5. System updates status → `settlement`
+6. Receipt email sent automatically
+
+**Cash Payment Flow (NEW):**
+
+1. Customer/staff creates order → Status: `pending`
+2. Staff processes cash payment via `/pay-cash`
+3. System validates amount ≥ rounded amount
+4. System calculates change
+5. System updates status → `settlement`
+6. Receipt displayed (change amount shown)
+
+**Payment Status States:**
+
+-   `pending`: Awaiting payment
+-   `settlement`: Paid successfully
+-   `cancel`: Cancelled by user
+-   `deny`: Denied by fraud detection
+-   `expire`: Payment timeout
+-   `failure`: Payment failed
+-   `refund`: Refunded
+
+### Order Calculation Logic
+
+**Price Calculation (per item):**
+
+1. Base price from product
+2. Apply promotion (if active):
+    - `percent`: `base_price × (1 - discount_value / 100)`
+    - `nominal`: `base_price - discount_value`
+    - `override_price`: `discount_value`
+3. Final price = promotional price or base price
+4. Line subtotal = `final_price × quantity`
+
+**Order Total Calculation:**
+
+1. Subtotal = sum of all line subtotals
+2. Tax = sum of `(line_subtotal × tax_percent / 100)` per item
+3. Service charge = sum of `(line_subtotal × service_charge_percent / 100)` per item
+4. Discount = subtotal - sum of line subtotals with promotions
+5. Total amount = `subtotal - discount + tax + service_charge`
+6. **Rounded amount (NEW)** = Total rounded to nearest Rp 100
+
+**Example:**
+
+```
+Item 1: Nasi Goreng × 2
+  Base price: Rp 25,000
+  Promotion: 10% off → Final price: Rp 22,500
+  Line subtotal: Rp 45,000
+  Tax (10%): Rp 4,500
+  Service (5%): Rp 2,250
+
+Order Summary:
+  Subtotal: Rp 45,000
+  Discount: Rp 5,000
+  Tax: Rp 4,500
+  Service: Rp 2,250
+  Total: Rp 46,750
+  Rounded: Rp 46,800 (for cash payment)
+```
 
 ### Promotion Application
 
-Promotions are time-bound and product-specific. Discounts are applied at order creation time by checking active promotions for the selected products.
+Promotions are automatically applied at order creation time:
+
+-   Checks promotion validity (start/end dates)
+-   Checks `pm_is_active` flag
+-   Applies best available discount per product
+-   Stores original and final prices for audit trail
 
 ### Customer Authentication
 
@@ -789,22 +1426,42 @@ Promotions are time-bound and product-specific. Discounts are applied at order c
 
 **Authorization Levels:**
 
--   **Level 10** (>= 10): Officer/Staff - daily operations access
--   **Level 100** (>= 100): Admin/Owner - full merchant management
+-   **Level 10** (>= 10): Admin/Owner - full merchant management (create/update products, categories, promotions, tables, refunds)
+-   **Level 100** (>= 100): Officer/Staff - daily operations access (view orders, process cash payments, cancel/expire payments)
 
 **Usage in Endpoints:**
 
 ```python
-from app.api.deps import require_auth, require_min_role_level, require_customer_auth
+from app.api.deps import get_auth_context, get_customer_auth_context
 
-# Staff auth (any level >= 1)
-@router.get("/endpoint", dependencies=[Depends(require_auth)])
+# Dual auth (accepts both customer JWT and staff SSO)
+auth: AuthContext = Depends(get_auth_context())
 
-# Admin-only auth
-@router.get("/admin", dependencies=[Depends(require_min_role_level(100))])
+# Customer-only auth
+auth: AuthContext = Depends(get_customer_auth_context())
 
-# Customer auth
-@router.get("/customer-endpoint", dependencies=[Depends(require_customer_auth)])
+# In endpoint logic:
+if auth.is_customer():
+    # Customer-specific logic
+    auth.require_ownership(order.cu_id)  # Validate ownership
+elif auth.is_staff():
+    # Staff-specific logic
+    if auth.is_admin():  # Level >= 10
+        # Admin operations
+    elif auth.is_officer():  # Level >= 100
+        # Officer operations
+```
+
+**AuthContext Methods:**
+
+```python
+auth.is_customer() -> bool  # True if authenticated via customer JWT
+auth.is_staff() -> bool  # True if authenticated via Atlas SSO
+auth.is_admin() -> bool  # True if role_level >= 10
+auth.is_officer() -> bool  # True if role_level >= 100
+auth.require_staff()  # Raises 403 if not staff
+auth.require_customer()  # Raises 403 if not customer
+auth.require_ownership(cu_id)  # Raises 403 if customer doesn't own resource
 ```
 
 ### Response Encryption
@@ -928,16 +1585,26 @@ atapos/
 │   │   └── v1/
 │   │       ├── api.py         # Router aggregation
 │   │       └── endpoints/
-│   │           ├── auth.py
+│   │           ├── customer_auth.py
 │   │           ├── merchants.py
+│   │           ├── customers.py
 │   │           ├── products.py
 │   │           ├── product_categories.py
-│   │           ├── product_attachments.py
 │   │           ├── promotions.py
 │   │           ├── table_locations.py
-│   │           ├── customers.py
 │   │           └── orders.py
 │   ├── utils/                 # Utility functions
+│   │   ├── cloudinary.py      # Cloudinary integration
+│   │   └── email.py           # Email service
+│   ├── templates/             # Email templates
+│   │   └── email/
+│   │       ├── magic_link.html
+│   │       ├── otp.html
+│   │       └── receipt.html
+│   ├── demo/                  # Demo HTML pages
+│   │   ├── customer_auth.py
+│   │   ├── snap_embedded.py
+│   │   └── order_history.py
 │   └── main.py                # FastAPI application entry point
 ├── tests/                     # Test files
 │   ├── conftest.py
