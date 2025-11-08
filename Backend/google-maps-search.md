@@ -19,55 +19,60 @@ Built with **FastAPI**, **SerpAPI**, and **Clean Architecture** principles.
 ---
 
 ## 📑 Table of Contents
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-  - [Setup with Docker](#setup-with-docker)
-  - [Manual Setup (Development)](#manual-setup-development)
-- [API Documentation](#-api-documentation)
-- [API Endpoints](#-api-endpoints)
-- [Configuration](#-configuration)
-- [Project Structure](#-project-structure)
-- [How It Works](#-how-it-works)
-- [Example Usage](#-example-usage)
+
+-   [Features](#-features)
+-   [Quick Start](#-quick-start)
+    -   [Setup with Docker](#setup-with-docker)
+    -   [Manual Setup (Development)](#manual-setup-development)
+-   [API Documentation](#-api-documentation)
+-   [API Endpoints](#-api-endpoints)
+-   [Configuration](#-configuration)
+-   [Project Structure](#-project-structure)
+-   [How It Works](#-how-it-works)
+-   [Example Usage](#-example-usage)
 
 ---
 
 ## ✨ Features
 
-- 🔍 **Google Maps Search** via SerpAPI
-- 🚫 **Filter businesses without website** - only capture businesses with no website
-- ⭐ **High reviews filter** - only businesses with more than 100 reviews
-- 📞 **Phone contact required** - only businesses with phone numbers
-- ⚡ **Async & Parallel Processing** - searches performed in parallel for optimal performance
-- 📦 **Bulk Search Support** - search multiple locations/keywords at once (max 10)
-- 🎯 **Clean Architecture** - maintainable and scalable
+-   🔍 **Google Maps Search** via SerpAPI
+-   🚫 **Filter businesses without website** - only capture businesses with no website
+-   ⭐ **High reviews filter** - only businesses with more than 100 reviews
+-   📞 **Phone contact required** - only businesses with phone numbers
+-   ⚡ **Async & Parallel Processing** - searches performed in parallel for optimal performance
+-   📦 **Bulk Search Support** - search multiple locations/keywords at once (max 10)
+-   🎯 **Clean Architecture** - maintainable and scalable
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python **3.11+**
-- SerpAPI API Key ([Get it here](https://serpapi.com/))
-- Docker & Docker Compose (optional)
+
+-   Python **3.11+**
+-   SerpAPI API Key ([Get it here](https://serpapi.com/))
+-   Docker & Docker Compose (optional)
 
 ---
 
 ### Setup with Docker
 
 1. Clone repository
+
 ```bash
 git clone https://github.com/GratiaManullang03/google-maps-search.git
 cd google-maps-search
 ```
 
 2. Copy environment variables
+
 ```bash
 cp .env.example .env
 # Edit .env and add your SERPAPI_API_KEY
 ```
 
 3. Run with Docker Compose
+
 ```bash
 docker compose up -d
 ```
@@ -79,6 +84,7 @@ docker compose up -d
 ### Manual Setup (Development)
 
 1. Create a virtual environment
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
@@ -86,6 +92,7 @@ venv\Scripts\activate     # Windows
 ```
 
 2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -93,6 +100,7 @@ pip install -r requirements.txt
 3. Setup environment variables
 
 Create `.env` file:
+
 ```env
 APP_NAME="Google Maps Search API"
 APP_VERSION="1.0.0"
@@ -102,6 +110,7 @@ SERPAPI_API_KEY=your-serpapi-key-here
 ```
 
 4. Run the app
+
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
@@ -110,8 +119,8 @@ uvicorn app.main:app --reload --port 8000
 
 ## 📚 API Documentation
 
-* Swagger UI → [http://localhost:8000/docs](http://localhost:8000/docs)
-* ReDoc → [http://localhost:8000/redoc](http://localhost:8000/redoc)
+-   Swagger UI → [http://localhost:8000/docs](http://localhost:8000/docs)
+-   ReDoc → [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
@@ -124,34 +133,36 @@ uvicorn app.main:app --reload --port 8000
 Search businesses on Google Maps without website, with reviews > 100, and with phone contact.
 
 **Request Body:**
+
 ```json
 {
-  "query": "restaurant",
-  "location": "Jakarta, Indonesia",
-  "num_results": 20
+    "query": "restaurant",
+    "location": "Jakarta, Indonesia",
+    "num_results": 20
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "message": "Google Maps search completed successfully",
-  "data": {
-    "query": "restaurant",
-    "location": "Jakarta, Indonesia",
-    "total_results": 5,
-    "results": [
-      {
-        "title": "Warung Makan Bu Tini",
-        "address": "Jl. Sudirman No. 123, Jakarta",
-        "phone": "+62812345678",
-        "rating": 4.5,
-        "reviews": 120,
-        "type": "Restaurant"
-      }
-    ]
-  }
+    "success": true,
+    "message": "Google Maps search completed successfully",
+    "data": {
+        "query": "restaurant",
+        "location": "Jakarta, Indonesia",
+        "total_results": 5,
+        "results": [
+            {
+                "title": "Warung Makan Bu Tini",
+                "address": "Jl. Sudirman No. 123, Jakarta",
+                "phone": "+62812345678",
+                "rating": 4.5,
+                "reviews": 120,
+                "type": "Restaurant"
+            }
+        ]
+    }
 }
 ```
 
@@ -164,24 +175,26 @@ Search businesses on Google Maps without website, with reviews > 100, and with p
 Perform multiple searches in parallel (max 10 searches).
 
 **Request Body:**
+
 ```json
 {
-  "searches": [
-    {
-      "query": "restaurant",
-      "location": "Jakarta, Indonesia",
-      "num_results": 20
-    },
-    {
-      "query": "hotel",
-      "location": "Bali, Indonesia",
-      "num_results": 20
-    }
-  ]
+    "searches": [
+        {
+            "query": "restaurant",
+            "location": "Jakarta, Indonesia",
+            "num_results": 20
+        },
+        {
+            "query": "hotel",
+            "location": "Bali, Indonesia",
+            "num_results": 20
+        }
+    ]
 }
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -212,10 +225,11 @@ Perform multiple searches in parallel (max 10 searches).
 Check if the API is running.
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "message": "Service is healthy"
+    "success": true,
+    "message": "Service is healthy"
 }
 ```
 
@@ -228,17 +242,18 @@ Check if the API is running.
 1. Sign up at [https://serpapi.com/](https://serpapi.com/)
 2. Get your API key from dashboard
 3. Add to `.env`:
+
 ```env
 SERPAPI_API_KEY=your_api_key_here
 ```
 
 ### Request Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| query | string | required | Search query (e.g., "restaurant", "hotel") |
-| location | string | required | Location (e.g., "Jakarta, Indonesia") |
-| num_results | integer | 20 | Number of results (10-100) |
+| Parameter   | Type    | Default  | Description                                |
+| ----------- | ------- | -------- | ------------------------------------------ |
+| query       | string  | required | Search query (e.g., "restaurant", "hotel") |
+| location    | string  | required | Location (e.g., "Jakarta, Indonesia")      |
+| num_results | integer | 20       | Number of results (10-100)                 |
 
 ---
 
@@ -272,6 +287,7 @@ app/
 4. **Return filtered results** with contact information
 
 ### Filter Logic:
+
 ```python
 # Only businesses WITHOUT website, WITH phone, and reviews > 100
 filtered_results = [
@@ -318,18 +334,18 @@ print(response.json())
 
 ```javascript
 fetch('http://localhost:8000/api/v1/gmaps/search', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    query: 'restaurant',
-    location: 'Jakarta, Indonesia',
-    num_results: 20
-  })
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        query: 'restaurant',
+        location: 'Jakarta, Indonesia',
+        num_results: 20,
+    }),
 })
-.then(response => response.json())
-.then(data => console.log(data));
+    .then((response) => response.json())
+    .then((data) => console.log(data));
 ```
 
 ---
@@ -356,20 +372,20 @@ SERPAPI_API_KEY=your-serpapi-key
 
 ## 📝 Notes
 
-- ⚡ **Async processing** for optimal performance
-- 🚫 **Auto-filter** businesses with website
-- ⭐ Only returns businesses with **reviews > 100**
-- 📞 Only returns businesses with **phone contact**
-- ⏱️ Request timeout: 30 seconds per search
-- 📊 Bulk search: maximum 10 searches per request
+-   ⚡ **Async processing** for optimal performance
+-   🚫 **Auto-filter** businesses with website
+-   ⭐ Only returns businesses with **reviews > 100**
+-   📞 Only returns businesses with **phone contact**
+-   ⏱️ Request timeout: 30 seconds per search
+-   📊 Bulk search: maximum 10 searches per request
 
 ---
 
 ## 🔐 Security Notes
 
-- Never commit `.env` file to repository
-- Protect `SERPAPI_API_KEY` - don't expose to public
-- Implement rate limiting for production
+-   Never commit `.env` file to repository
+-   Protect `SERPAPI_API_KEY` - don't expose to public
+-   Implement rate limiting for production
 
 ---
 

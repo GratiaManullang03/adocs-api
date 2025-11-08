@@ -19,37 +19,41 @@ tags: [atabot, rag, ai, pgvector, postgresql, fastapi, machine-learning]
 ## 🌟 Key Features
 
 ### 🧠 **Zero Configuration Intelligence**
-- **Universal Pattern Recognition**: Automatically understands ANY database schema
-- **Adaptive Learning**: Learns business terminology from your actual data
-- **Multi-Domain Support**: Works with healthcare, retail, education, finance, or ANY domain
-- **Language Agnostic**: Supports queries in any language (Indonesian, English, etc.)
+
+-   **Universal Pattern Recognition**: Automatically understands ANY database schema
+-   **Adaptive Learning**: Learns business terminology from your actual data
+-   **Multi-Domain Support**: Works with healthcare, retail, education, finance, or ANY domain
+-   **Language Agnostic**: Supports queries in any language (Indonesian, English, etc.)
 
 ### ⚡ **Lightning Fast Performance**
-- **Lightweight Design**: Docker image < 500MB
-- **Memory Efficient**: < 512MB idle memory usage
-- **Fast Queries**: < 2 seconds response time for 90% of queries
-- **Scalable**: Handles 100+ concurrent users
+
+-   **Lightweight Design**: Docker image < 500MB
+-   **Memory Efficient**: < 512MB idle memory usage
+-   **Fast Queries**: < 2 seconds response time for 90% of queries
+-   **Scalable**: Handles 100+ concurrent users
 
 ### 🔄 **Real-time Synchronization**
-- **Instant Updates**: Data changes reflected in < 1 second
-- **Automatic Triggers**: PostgreSQL triggers for INSERT/UPDATE/DELETE
-- **Incremental Sync**: Only updates changed data
-- **Batch Processing**: Sync 10,000+ rows per minute
+
+-   **Instant Updates**: Data changes reflected in < 1 second
+-   **Automatic Triggers**: PostgreSQL triggers for INSERT/UPDATE/DELETE
+-   **Incremental Sync**: Only updates changed data
+-   **Batch Processing**: Sync 10,000+ rows per minute
 
 ### 🔍 **Hybrid Search Excellence**
-- **SQL + Vector Search**: Combines traditional filtering with semantic search
-- **Complex Query Decomposition**: Breaks down complex questions automatically
-- **Multi-table JOINs**: Automatically handles relationships
-- **Aggregations & Analytics**: SUM, AVG, COUNT, GROUP BY, etc.
+
+-   **SQL + Vector Search**: Combines traditional filtering with semantic search
+-   **Complex Query Decomposition**: Breaks down complex questions automatically
+-   **Multi-table JOINs**: Automatically handles relationships
+-   **Aggregations & Analytics**: SUM, AVG, COUNT, GROUP BY, etc.
 
 ## 📋 Prerequisites
 
-- **Docker** & **Docker Compose** (recommended)
-- OR:
-  - **Python 3.11+**
-  - **PostgreSQL 14+** with **pgvector** extension
-  - **VoyageAI API Key** (for embeddings)
-  - **Poe API Key** (for LLM)
+-   **Docker** & **Docker Compose** (recommended)
+-   OR:
+    -   **Python 3.11+**
+    -   **PostgreSQL 14+** with **pgvector** extension
+    -   **VoyageAI API Key** (for embeddings)
+    -   **Poe API Key** (for LLM)
 
 ## 🚀 Quick Start
 
@@ -67,8 +71,9 @@ cp .env.example .env
 ```
 
 Edit `.env` and add your API keys:
-- `VOYAGE_API_KEY`: Get from [VoyageAI](https://www.voyageai.com/)
-- `POE_API_KEY`: Get from [Poe](https://poe.com/api_key)
+
+-   `VOYAGE_API_KEY`: Get from [VoyageAI](https://www.voyageai.com/)
+-   `POE_API_KEY`: Get from [Poe](https://poe.com/api_key)
 
 ### 3. Start with Docker Compose
 
@@ -81,9 +86,10 @@ docker-compose up -d --build
 ```
 
 The application will be available at:
-- **API**: http://localhost:8000
-- **Swagger Docs**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+
+-   **API**: http://localhost:8000
+-   **Swagger Docs**: http://localhost:8000/docs
+-   **ReDoc**: http://localhost:8000/redoc
 
 ### 4. Initialize Your First Schema
 
@@ -105,22 +111,25 @@ curl -X POST http://localhost:8000/api/v1/sync \
 ### Core Endpoints
 
 #### 🤖 Chat API
+
 ```http
 POST /api/v1/chat                       # Main chat endpoint
 POST /api/v1/chat/stream                # Streaming chat responses
 GET /api/v1/chat/history/{session_id}   # Get chat history
 DELETE /api/v1/chat/history/{session_id} # Clear chat history
 ```
+
 ```json
 {
-  "query": "What are the top 5 products by revenue?",
-  "schema_name": "retail",
-  "include_sources": true,
-  "top_k": 10
+    "query": "What are the top 5 products by revenue?",
+    "schema_name": "retail",
+    "include_sources": true,
+    "top_k": 10
 }
 ```
 
 #### 📊 Schema Management
+
 ```http
 GET /api/v1/schemas                     # List all schemas
 POST /api/v1/schemas/{name}/analyze     # Analyze schema structure
@@ -130,6 +139,7 @@ GET /api/v1/schemas/{name}/relationships # Get table relationships
 ```
 
 #### 🔄 Synchronization
+
 ```http
 POST /api/v1/sync                       # Start schema sync
 POST /api/v1/sync/table                 # Sync specific table
@@ -141,6 +151,7 @@ GET /api/v1/sync/statistics             # Get sync statistics
 ```
 
 #### ❤️ Health & System Status
+
 ```http
 GET /api/v1/health                      # Comprehensive health check
 GET /api/v1/metrics                     # Application metrics
@@ -151,6 +162,7 @@ GET /api/v1/live                        # Liveness probe
 ## 🎯 Usage Examples
 
 ### Simple Queries
+
 ```python
 import httpx
 
@@ -166,6 +178,7 @@ print(response.json()["answer"])
 ```
 
 ### Complex Multi-Entity Queries
+
 ```python
 # Complex query with automatic decomposition
 response = client.post("/api/v1/chat", json={
@@ -175,6 +188,7 @@ response = client.post("/api/v1/chat", json={
 ```
 
 ### Streaming Responses
+
 ```python
 # Stream for long responses
 with client.stream("POST", "/api/v1/chat/stream", json={
@@ -224,15 +238,15 @@ with client.stream("POST", "/api/v1/chat/stream", json={
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VOYAGE_API_KEY` | VoyageAI API key for embeddings | Required |
-| `POE_API_KEY` | Poe API key for LLM | Required |
-| `DATABASE_URL` | PostgreSQL connection string | Required |
-| `SYNC_BATCH_SIZE` | Rows per sync batch | 1000 |
-| `VECTOR_SEARCH_LIMIT` | Max vector search results | 10 |
-| `ENABLE_REALTIME_SYNC` | Enable real-time triggers | true |
-| `ENABLE_CACHE` | Enable query caching | true |
+| Variable               | Description                     | Default  |
+| ---------------------- | ------------------------------- | -------- |
+| `VOYAGE_API_KEY`       | VoyageAI API key for embeddings | Required |
+| `POE_API_KEY`          | Poe API key for LLM             | Required |
+| `DATABASE_URL`         | PostgreSQL connection string    | Required |
+| `SYNC_BATCH_SIZE`      | Rows per sync batch             | 1000     |
+| `VECTOR_SEARCH_LIMIT`  | Max vector search results       | 10       |
+| `ENABLE_REALTIME_SYNC` | Enable real-time triggers       | true     |
+| `ENABLE_CACHE`         | Enable query caching            | true     |
 
 ### Performance Tuning
 
@@ -250,14 +264,14 @@ VECTOR_SEARCH_LIMIT=5
 
 ## 📈 Performance Benchmarks
 
-| Metric | Target | Achieved |
-|--------|--------|----------|
-| Docker Image Size | < 500MB | ✅ 380MB |
-| Memory Usage (Idle) | < 512MB | ✅ 320MB |
-| Startup Time | < 5 seconds | ✅ 3.2s |
-| Query Response (P90) | < 2 seconds | ✅ 1.7s |
-| Sync Speed | > 10k rows/min | ✅ 15k rows/min |
-| Concurrent Users | 100+ | ✅ 150 tested |
+| Metric               | Target         | Achieved        |
+| -------------------- | -------------- | --------------- |
+| Docker Image Size    | < 500MB        | ✅ 380MB        |
+| Memory Usage (Idle)  | < 512MB        | ✅ 320MB        |
+| Startup Time         | < 5 seconds    | ✅ 3.2s         |
+| Query Response (P90) | < 2 seconds    | ✅ 1.7s         |
+| Sync Speed           | > 10k rows/min | ✅ 15k rows/min |
+| Concurrent Users     | 100+           | ✅ 150 tested   |
 
 ## 🧪 Testing
 
@@ -278,16 +292,19 @@ locust -f tests/load/locustfile.py --host=http://localhost:8000
 ## 🚢 Production Deployment
 
 ### Using Docker Swarm
+
 ```bash
 docker stack deploy -c docker-compose.prod.yml atabot
 ```
 
 ### Using Kubernetes
+
 ```bash
 kubectl apply -f k8s/
 ```
 
 ### Environment-specific configs
+
 ```bash
 # Production
 cp .env.prod .env
@@ -303,39 +320,44 @@ docker-compose -f docker-compose.staging.yml up
 ### Common Issues
 
 1. **pgvector not installed**
-   ```sql
-   -- Connect to PostgreSQL and run:
-   CREATE EXTENSION vector;
-   ```
+
+    ```sql
+    -- Connect to PostgreSQL and run:
+    CREATE EXTENSION vector;
+    ```
 
 2. **Memory issues with large schemas**
-   ```bash
-   # Increase batch processing limits
-   SYNC_BATCH_SIZE=500
-   EMBEDDING_BATCH_SIZE=50
-   ```
+
+    ```bash
+    # Increase batch processing limits
+    SYNC_BATCH_SIZE=500
+    EMBEDDING_BATCH_SIZE=50
+    ```
 
 3. **Slow queries**
-   ```sql
-   -- Check indexes
-   SELECT * FROM pg_indexes WHERE tablename = 'embeddings';
-   
-   -- Analyze query plan
-   EXPLAIN ANALYZE your_query_here;
-   ```
+
+    ```sql
+    -- Check indexes
+    SELECT * FROM pg_indexes WHERE tablename = 'embeddings';
+
+    -- Analyze query plan
+    EXPLAIN ANALYZE your_query_here;
+    ```
 
 ## 📊 Monitoring
 
 ### Prometheus Metrics
+
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: 'atabot'
-    static_configs:
-      - targets: ['localhost:9090']
+    - job_name: 'atabot'
+      static_configs:
+          - targets: ['localhost:9090']
 ```
 
 ### Grafana Dashboard
+
 Import dashboard from `monitoring/grafana-dashboard.json`
 
 ## 🤝 Contributing
@@ -352,17 +374,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
-- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
-- [VoyageAI](https://www.voyageai.com/) - Embedding generation
-- [Poe](https://poe.com/) - LLM API
+-   [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
+-   [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
+-   [VoyageAI](https://www.voyageai.com/) - Embedding generation
+-   [Poe](https://poe.com/) - LLM API
 
 ## 📞 Support
 
-- **Documentation**: [docs.atabot.ai](https://docs.atabot.ai)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/atabot-2.0/issues)
-- **Discord**: [Join our community](https://discord.gg/atabot)
-- **Email**: support@atabot.ai
+-   **Documentation**: [docs.atabot.ai](https://docs.atabot.ai)
+-   **Issues**: [GitHub Issues](https://github.com/yourusername/atabot-2.0/issues)
+-   **Discord**: [Join our community](https://discord.gg/atabot)
+-   **Email**: support@atabot.ai
 
 ---
 

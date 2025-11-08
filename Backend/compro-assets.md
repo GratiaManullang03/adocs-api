@@ -12,22 +12,22 @@ API to manage company profile assets with authentication features using Atlas SS
 
 ## Features
 
-* **CRUD Operations** for Company Profile Assets
-* **Atlas SSO Integration** for authentication & authorization
-* **Role-based Access Control** with role level validation
-* **Public Endpoints** for GET operations (no auth)
-* **Protected Endpoints** for Create/Update/Delete (role_level >= 10)
-* **Response Encryption** for GET endpoints (optional)
-* **Database Auditing** with created_by, created_at, updated_by, updated_at
+-   **CRUD Operations** for Company Profile Assets
+-   **Atlas SSO Integration** for authentication & authorization
+-   **Role-based Access Control** with role level validation
+-   **Public Endpoints** for GET operations (no auth)
+-   **Protected Endpoints** for Create/Update/Delete (role_level >= 10)
+-   **Response Encryption** for GET endpoints (optional)
+-   **Database Auditing** with created_by, created_at, updated_by, updated_at
 
 ## Tech Stack
 
-* **FastAPI** - Modern Python web framework
-* **PostgreSQL** - Database with `compro` schema
-* **SQLAlchemy** - ORM
-* **ATAMS Toolkit** - Internal toolkit for authentication & utilities
-* **Atlas SSO** - Single Sign-On service
-* **Docker & Docker Compose** - Containerization
+-   **FastAPI** - Modern Python web framework
+-   **PostgreSQL** - Database with `compro` schema
+-   **SQLAlchemy** - ORM
+-   **ATAMS Toolkit** - Internal toolkit for authentication & utilities
+-   **Atlas SSO** - Single Sign-On service
+-   **Docker & Docker Compose** - Containerization
 
 ## Project Structure
 
@@ -84,8 +84,8 @@ Authentication uses **Atlas SSO** with a Bearer token or cookie (`ATLASTOKEN`).
 
 **Authorization Rules:**
 
-* **GET endpoints**: Public access (no authentication required)
-* **POST/PUT/DELETE**: Requires `role_level >= 10` for app `COMPRO_ASSETS`
+-   **GET endpoints**: Public access (no authentication required)
+-   **POST/PUT/DELETE**: Requires `role_level >= 10` for app `COMPRO_ASSETS`
 
 ## Database Schema
 
@@ -113,9 +113,9 @@ CREATE INDEX IF NOT EXISTS idx_compro_assets_title ON compro.compro_assets (ca_t
 
 ### Prerequisites
 
-* Python 3.11+
-* PostgreSQL 14+
-* Docker & Docker Compose (optional)
+-   Python 3.11+
+-   PostgreSQL 14+
+-   Docker & Docker Compose (optional)
 
 ### 1. Clone Repository
 
@@ -204,9 +204,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 5. Access API
 
-* **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-* **Alternative Docs (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-* **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+-   **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+-   **Alternative Docs (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+-   **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 
 ## Usage Examples
 
@@ -267,13 +267,14 @@ curl -X DELETE "http://localhost:8000/api/v1/assets/1" \
 2. Atlas returns an access token (JWT)
 3. The client stores the token in:
 
-   * **Header**: `Authorization: Bearer <token>`
-   * **Cookie**: `ATLASTOKEN=<token>`
+    - **Header**: `Authorization: Bearer <token>`
+    - **Cookie**: `ATLASTOKEN=<token>`
+
 4. Every request to a protected endpoint will validate:
 
-   * Is the token valid?
-   * Does the user have access to the `COMPRO_ASSETS` app?
-   * Is role level >= 10?
+    - Is the token valid?
+    - Does the user have access to the `COMPRO_ASSETS` app?
+    - Is role level >= 10?
 
 ## Development
 
@@ -283,7 +284,7 @@ Docker Compose is configured with volume mounting for hot reload:
 
 ```yaml
 volumes:
-  - ./app:/app/app
+    - ./app:/app/app
 ```
 
 Changes in the `app/` folder will automatically reload without restarting the container.
@@ -366,28 +367,28 @@ Check:
 
 Ensure the user in Atlas has a role with:
 
-* `app_code = "COMPRO_ASSETS"`
-* `role_level >= 10`
+-   `app_code = "COMPRO_ASSETS"`
+-   `role_level >= 10`
 
 ## Example Endpoints (from template)
 
 This project also includes an example CRUD for Users demonstrating:
 
-* Complete CRUD operations (GET, POST, PUT, DELETE)
-* Two-level authorization (Route + Service)
-* Atlas SSO authentication
-* Response encryption for GET endpoints
-* ORM and Native SQL examples in BaseRepository
-* Proper commit/rollback handling
-* Proper error handling
+-   Complete CRUD operations (GET, POST, PUT, DELETE)
+-   Two-level authorization (Route + Service)
+-   Atlas SSO authentication
+-   Response encryption for GET endpoints
+-   ORM and Native SQL examples in BaseRepository
+-   Proper commit/rollback handling
+-   Proper error handling
 
 **Available endpoints:**
 
-* GET /api/v1/users - List all users (requires role level >= 50)
-* GET /api/v1/users/{id} - Get single user (requires role level >= 10)
-* POST /api/v1/users - Create user (requires role level >= 50)
-* PUT /api/v1/users/{id} - Update user (requires role level >= 10)
-* DELETE /api/v1/users/{id} - Delete user (requires role level >= 50)
+-   GET /api/v1/users - List all users (requires role level >= 50)
+-   GET /api/v1/users/{id} - Get single user (requires role level >= 10)
+-   POST /api/v1/users - Create user (requires role level >= 50)
+-   PUT /api/v1/users/{id} - Update user (requires role level >= 10)
+-   DELETE /api/v1/users/{id} - Delete user (requires role level >= 50)
 
 ## Contributing
 
@@ -403,6 +404,6 @@ Internal ATAMS Project
 
 ## Contact
 
-* **Developer**: ATAMS Team
-* **Project**: Compro Assets API
-* **Documentation**: [API Docs](http://localhost:8000/docs)
+-   **Developer**: ATAMS Team
+-   **Project**: Compro Assets API
+-   **Documentation**: [API Docs](http://localhost:8000/docs)

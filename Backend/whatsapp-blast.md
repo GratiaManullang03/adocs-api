@@ -26,21 +26,21 @@ WhatsApp Bulk Messenger automates sending of messages via WhatsApp Web. The tool
 
 ## Requirements
 
-*  Python >= 3.6
-*  Chrome browser (ChromeDriver is installed automatically by the program)
+-   Python >= 3.6
+-   Chrome browser (ChromeDriver is installed automatically by the program)
 
 ## Setup
 
 1. Install Python >= 3.6
 2. Create virtual environment (optional but recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## Usage
 
@@ -61,6 +61,7 @@ Thank You
 Edit `numbers.txt` with phone numbers. Format:
 
 **With names (recommended):**
+
 ```
 6285746674052 - Sultan
 6285156505553 - Septyo
@@ -68,6 +69,7 @@ Edit `numbers.txt` with phone numbers. Format:
 ```
 
 **Without names:**
+
 ```
 6285746674052
 6285156505553
@@ -75,10 +77,11 @@ Edit `numbers.txt` with phone numbers. Format:
 ```
 
 **Important:**
-- Use international format without `+` sign (e.g., `628xxx` for Indonesia)
-- Do NOT use `08xxx` format - it will fail
-- One contact per line
-- If name is not provided, `{name}` will be replaced with "there"
+
+-   Use international format without `+` sign (e.g., `628xxx` for Indonesia)
+-   Do NOT use `08xxx` format - it will fail
+-   One contact per line
+-   If name is not provided, `{name}` will be replaced with "there"
 
 ### 3. Run the Program
 
@@ -97,21 +100,23 @@ python automator.py
 ### 5. Monitor Progress
 
 The program will show:
-- ✅ Green: Successfully sent
-- ❌ Red: Failed (with retry attempts)
-- 📊 Progress: Current/Total contacts
+
+-   ✅ Green: Successfully sent
+-   ❌ Red: Failed (with retry attempts)
+-   📊 Progress: Current/Total contacts
 
 ## Number Format Guide
 
-| ❌ Wrong | ✅ Correct |
-|---------|-----------|
+| ❌ Wrong        | ✅ Correct     |
+| --------------- | -------------- |
 | `+628123456789` | `628123456789` |
-| `08123456789` | `628123456789` |
+| `08123456789`   | `628123456789` |
 | `0812-3456-789` | `628123456789` |
 
 **Format:** `[country_code][number_without_leading_zero]`
-- Indonesia: `62` + number without `0`
-- Example: `0812-3456-7890` → `628123456790`
+
+-   Indonesia: `62` + number without `0`
+-   Example: `0812-3456-7890` → `628123456790`
 
 ## Blacklist System
 
@@ -125,12 +130,13 @@ The blacklist feature automatically prevents sending duplicate messages to the s
 
 ### Files
 
-- **`numbers.txt`** - Your current blast list (cleared after each blast)
-- **`blacklist.txt`** - Historical record of all contacted numbers (auto-managed)
+-   **`numbers.txt`** - Your current blast list (cleared after each blast)
+-   **`blacklist.txt`** - Historical record of all contacted numbers (auto-managed)
 
 ### Example Flow
 
 **Initial state:**
+
 ```
 numbers.txt:
 628123456789 - John
@@ -141,6 +147,7 @@ blacklist.txt:
 ```
 
 **After first blast:**
+
 ```
 numbers.txt:
 (empty - cleared automatically)
@@ -151,6 +158,7 @@ blacklist.txt:
 ```
 
 **If you add John again:**
+
 ```
 numbers.txt:
 628123456789 - John  ← Will be removed automatically before blast
@@ -162,8 +170,9 @@ Result: Only Mike receives the message
 ### Manual Blacklist Management
 
 You can manually edit `blacklist.txt`:
-- **Add numbers** to prevent messaging them
-- **Remove numbers** to allow messaging them again
+
+-   **Add numbers** to prevent messaging them
+-   **Remove numbers** to allow messaging them again
 
 **Note:** If ALL numbers in `numbers.txt` are blacklisted, the program will abort with an error message.
 
@@ -172,22 +181,25 @@ You can manually edit `blacklist.txt`:
 ### Recent Updates (2025)
 
 **🐛 Bug Fixes:**
-- Fixed ChromeDriver compatibility issue with latest Chrome versions
-- Updated Selenium from 3.x to 4.x for better stability
-- Fixed WhatsApp Web send button selector (was failing to click)
-- Updated dependencies to support modern Python versions
+
+-   Fixed ChromeDriver compatibility issue with latest Chrome versions
+-   Updated Selenium from 3.x to 4.x for better stability
+-   Fixed WhatsApp Web send button selector (was failing to click)
+-   Updated dependencies to support modern Python versions
 
 **✨ New Features:**
-- **Blacklist System**: Automatically prevents duplicate messages to same contacts
-  - Auto-removes blacklisted numbers before blast
-  - Auto-moves sent numbers to blacklist after blast
-  - Protects against accidental spam
-- **Personalized Messages**: Use `{name}` placeholder in messages
-- **Contact Names**: Support `number - name` format in numbers.txt
-- **Better Error Handling**: Improved retry mechanism with clearer error messages
-- **Progress Tracking**: Shows contact name and number during sending
+
+-   **Blacklist System**: Automatically prevents duplicate messages to same contacts
+    -   Auto-removes blacklisted numbers before blast
+    -   Auto-moves sent numbers to blacklist after blast
+    -   Protects against accidental spam
+-   **Personalized Messages**: Use `{name}` placeholder in messages
+-   **Contact Names**: Support `number - name` format in numbers.txt
+-   **Better Error Handling**: Improved retry mechanism with clearer error messages
+-   **Progress Tracking**: Shows contact name and number during sending
 
 **📝 Example:**
+
 ```
 numbers.txt:
 628123456789 - John
@@ -202,16 +214,20 @@ Result:
 ## Troubleshooting
 
 **Problem: "There is no such driver by url" error**
-- Solution: Update dependencies with `pip install --upgrade -r requirements.txt`
+
+-   Solution: Update dependencies with `pip install --upgrade -r requirements.txt`
 
 **Problem: Messages not sending (staying in chat box)**
-- Solution: Already fixed in latest version. Update your code.
+
+-   Solution: Already fixed in latest version. Update your code.
 
 **Problem: "Invalid phone number" error**
-- Solution: Use format `628xxx` (country code + number without leading 0)
+
+-   Solution: Use format `628xxx` (country code + number without leading 0)
 
 **Problem: Chrome doesn't open**
-- Solution: Make sure Chrome browser is installed on your system
+
+-   Solution: Make sure Chrome browser is installed on your system
 
 ### Funding
 

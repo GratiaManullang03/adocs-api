@@ -12,12 +12,12 @@ AURA is a lightweight, asynchronous API built with FastAPI that provides locatio
 
 ## Features
 
-  - **Fast Autocomplete**: Provides real-time city suggestions as the user types.
-  - **Asynchronous**: Built on FastAPI and `httpx` for high-performance, non-blocking I/O.
-  - **External Service Integration**: Uses the Geoapify Geocoding API to fetch location data.
-  - **Clean Architecture**: Organized into logical layers (API, services, schemas) for better maintainability.
-  - **Configuration Management**: Centralized configuration using Pydantic's `BaseSettings`.
-  - **Health Check**: Includes a `/health` endpoint to monitor the status of the API and its database connection.
+-   **Fast Autocomplete**: Provides real-time city suggestions as the user types.
+-   **Asynchronous**: Built on FastAPI and `httpx` for high-performance, non-blocking I/O.
+-   **External Service Integration**: Uses the Geoapify Geocoding API to fetch location data.
+-   **Clean Architecture**: Organized into logical layers (API, services, schemas) for better maintainability.
+-   **Configuration Management**: Centralized configuration using Pydantic's `BaseSettings`.
+-   **Health Check**: Includes a `/health` endpoint to monitor the status of the API and its database connection.
 
 ## Project Structure
 
@@ -51,38 +51,38 @@ app/
 
 ### Health Check
 
-  - **GET `/api/v1/health/`**
-      - Checks the health of the application, including database and Redis connectivity.
-      - **Response:**
+-   **GET `/api/v1/health/`**
+    -   Checks the health of the application, including database and Redis connectivity.
+    -   **Response:**
         ```json
         {
-          "success": true,
-          "message": "Database: healthy, Redis: not configured"
+            "success": true,
+            "message": "Database: healthy, Redis: not configured"
         }
         ```
 
 ### Location Autocomplete
 
-  - **GET `/api/v1/locations/autocomplete`**
-      - Provides a list of city suggestions based on the query string.
-      - **Query Parameters:**
-          - `q` (str): The search query (minimum 2 characters).
-          - `limit` (int, optional): The maximum number of results to return. Defaults to 5, max 20.
-      - **Response:**
+-   **GET `/api/v1/locations/autocomplete`**
+    -   Provides a list of city suggestions based on the query string.
+    -   **Query Parameters:**
+        -   `q` (str): The search query (minimum 2 characters).
+        -   `limit` (int, optional): The maximum number of results to return. Defaults to 5, max 20.
+    -   **Response:**
         ```json
         {
-          "success": true,
-          "message": "Autocomplete results retrieved",
-          "data": [
-            {
-              "formatted": "Liverpool, England, United Kingdom",
-              "city": "Liverpool",
-              "state": "England",
-              "country": "United Kingdom",
-              "country_code": "gb"
-            }
-          ],
-          "total": 1
+            "success": true,
+            "message": "Autocomplete results retrieved",
+            "data": [
+                {
+                    "formatted": "Liverpool, England, United Kingdom",
+                    "city": "Liverpool",
+                    "state": "England",
+                    "country": "United Kingdom",
+                    "country_code": "gb"
+                }
+            ],
+            "total": 1
         }
         ```
 

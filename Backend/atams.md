@@ -16,12 +16,12 @@ Universal toolkit untuk semua **AURA (Atams Universal Runtime Architecture)** pr
 
 ## Features
 
-- 🚀 **Instant CRUD Generation** - Generate full boilerplate in seconds
-- 🏗️ **Clean Architecture** - Enforced separation of concerns  
-- 🔒 **Security by Default** - Atlas SSO, encryption, RBAC
-- 📦 **Reusable Components** - Database, middleware, logging, etc.
-- 🎨 **CLI Tool** - Project initialization & code generation
-- 🌐 **CORS Protection** - Default to `*.atamsindonesia.com`
+-   🚀 **Instant CRUD Generation** - Generate full boilerplate in seconds
+-   🏗️ **Clean Architecture** - Enforced separation of concerns
+-   🔒 **Security by Default** - Atlas SSO, encryption, RBAC
+-   📦 **Reusable Components** - Database, middleware, logging, etc.
+-   🎨 **CLI Tool** - Project initialization & code generation
+-   🌐 **CORS Protection** - Default to `*.atamsindonesia.com`
 
 ## Installation
 
@@ -49,12 +49,13 @@ atams generate department
 ```
 
 Generates:
-- ✅ Model (SQLAlchemy)
-- ✅ Schema (Pydantic)
-- ✅ Repository (data access)
-- ✅ Service (business logic)
-- ✅ Endpoint (API routes)
-- ✅ Auto-registered to `api.py`
+
+-   ✅ Model (SQLAlchemy)
+-   ✅ Schema (Pydantic)
+-   ✅ Repository (data access)
+-   ✅ Service (business logic)
+-   ✅ Endpoint (API routes)
+-   ✅ Auto-registered to `api.py`
 
 ### 3. Customize & Run
 
@@ -96,7 +97,7 @@ class Settings(AtamsBaseSettings):
     APP_NAME: str = "MyApp"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    
+
     # App-specific encryption
     ENCRYPTION_KEY: str = "your-key-32-chars"
     ENCRYPTION_IV: str = "your-iv-16-char"
@@ -119,9 +120,10 @@ CORS_ORIGINS=["https://myapp.atamsindonesia.com"]
 Initialize new AURA project with complete structure.
 
 **Options:**
-- `--app-name, -a` - Application name (default: project_name)
-- `--version, -v` - Application version (default: 1.0.0)
-- `--schema, -s` - Database schema (default: aura)
+
+-   `--app-name, -a` - Application name (default: project_name)
+-   `--version, -v` - Application version (default: 1.0.0)
+-   `--schema, -s` - Database schema (default: aura)
 
 **Example:**
 
@@ -134,8 +136,9 @@ atams init my-new-app
 Generate full CRUD boilerplate for a resource.
 
 **Options:**
-- `--schema, -s` - Database schema (default: aura)
-- `--skip-api` - Skip auto-registration to api.py
+
+-   `--schema, -s` - Database schema (default: aura)
+-   `--skip-api` - Skip auto-registration to api.py
 
 **Example:**
 
@@ -177,44 +180,49 @@ my-app/
 BaseRepository menyediakan 20+ methods untuk operasi database yang lengkap:
 
 #### Basic CRUD Operations
-| Method | Description |
-|--------|-------------|
-| `get(db, id)` | Get single record by ID |
+
+| Method                       | Description                          |
+| ---------------------------- | ------------------------------------ |
+| `get(db, id)`                | Get single record by ID              |
 | `get_multi(db, skip, limit)` | Get multiple records with pagination |
-| `create(db, obj_in)` | Create new record |
-| `update(db, db_obj, obj_in)` | Update existing record |
-| `delete(db, id)` | Delete record by ID |
+| `create(db, obj_in)`         | Create new record                    |
+| `update(db, db_obj, obj_in)` | Update existing record               |
+| `delete(db, id)`             | Delete record by ID                  |
 
 #### Advanced Query Methods
-| Method | Description |
-|--------|-------------|
-| `exists(db, id)` | Fast existence check (returns bool) |
+
+| Method                                       | Description                                  |
+| -------------------------------------------- | -------------------------------------------- |
+| `exists(db, id)`                             | Fast existence check (returns bool)          |
 | `filter(db, filters, skip, limit, order_by)` | Dynamic filtering with pagination & ordering |
-| `first(db, filters, order_by)` | Get first matching record |
-| `count_filtered(db, filters)` | Count records with conditions |
-| `get_or_create(db, defaults, **filters)` | Get existing or create new (atomic) |
-| `update_or_create(db, filters, defaults)` | Update existing or create (upsert) |
+| `first(db, filters, order_by)`               | Get first matching record                    |
+| `count_filtered(db, filters)`                | Count records with conditions                |
+| `get_or_create(db, defaults, **filters)`     | Get existing or create new (atomic)          |
+| `update_or_create(db, filters, defaults)`    | Update existing or create (upsert)           |
 
 #### Bulk Operations (High Performance)
-| Method | Description |
-|--------|-------------|
-| `bulk_create(db, objects)` | Batch insert (100x faster than loop) |
-| `bulk_update(db, objects)` | Batch update multiple records |
-| `delete_many(db, ids)` | Batch delete by IDs |
-| `partial_update(db, id, data)` | Update without fetching first |
+
+| Method                         | Description                          |
+| ------------------------------ | ------------------------------------ |
+| `bulk_create(db, objects)`     | Batch insert (100x faster than loop) |
+| `bulk_update(db, objects)`     | Batch update multiple records        |
+| `delete_many(db, ids)`         | Batch delete by IDs                  |
+| `partial_update(db, id, data)` | Update without fetching first        |
 
 #### Soft Delete Pattern
-| Method | Description |
-|--------|-------------|
+
+| Method                                  | Description                     |
+| --------------------------------------- | ------------------------------- |
 | `soft_delete(db, id, deleted_at_field)` | Logical deletion with timestamp |
-| `restore(db, id, deleted_at_field)` | Restore soft-deleted record |
+| `restore(db, id, deleted_at_field)`     | Restore soft-deleted record     |
 
 #### Native SQL Execution
-| Method | Description |
-|--------|-------------|
-| `execute_raw_sql(db, query, params)` | Execute raw SQL, returns result |
-| `execute_raw_sql_dict(db, query, params)` | Execute SQL, returns list of dicts |
-| `execute_raw_sql_commit(db, query, params)` | Execute SQL with auto-commit |
+
+| Method                                      | Description                        |
+| ------------------------------------------- | ---------------------------------- |
+| `execute_raw_sql(db, query, params)`        | Execute raw SQL, returns result    |
+| `execute_raw_sql_dict(db, query, params)`   | Execute SQL, returns list of dicts |
+| `execute_raw_sql_commit(db, query, params)` | Execute SQL with auto-commit       |
 
 **Example Usage:**
 
@@ -274,6 +282,7 @@ class UserRepository(BaseRepository[User]):
 ### Using Atlas SSO
 
 Configure Atlas SSO in `.env`:
+
 ```env
 ATLAS_SSO_URL=https://api.atlas-microapi.atamsindonesia.com/api/v1
 ATLAS_APP_CODE=your_app_code
@@ -282,6 +291,7 @@ ATLAS_ENCRYPTION_IV=your_encryption_iv
 ```
 
 Then use in endpoints:
+
 ```python
 from atams.sso import require_auth, require_min_role_level
 
@@ -336,9 +346,9 @@ python -m build
 
 ATAMS follows [Semantic Versioning](https://semver.org/):
 
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for new functionality (backwards compatible)
-- **PATCH** version for bug fixes
+-   **MAJOR** version for incompatible API changes
+-   **MINOR** version for new functionality (backwards compatible)
+-   **PATCH** version for bug fixes
 
 Current version: **1.1.3**
 
@@ -348,9 +358,9 @@ MIT License - see LICENSE file for details.
 
 ## Links
 
-- GitHub: [https://github.com/GratiaManullang03/atams](https://github.com/GratiaManullang03/atams)
-- PyPI: [https://pypi.org/project/atams](https://pypi.org/project/atams)
-- Issues: [https://github.com/GratiaManullang03/atams/issues](https://github.com/GratiaManullang03/atams/issues)
+-   GitHub: [https://github.com/GratiaManullang03/atams](https://github.com/GratiaManullang03/atams)
+-   PyPI: [https://pypi.org/project/atams](https://pypi.org/project/atams)
+-   Issues: [https://github.com/GratiaManullang03/atams/issues](https://github.com/GratiaManullang03/atams/issues)
 
 ## Support
 

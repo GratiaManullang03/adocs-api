@@ -16,21 +16,21 @@ This is a powerful and scalable Email Blast API built with **FastAPI** and **SQL
 
 ## Features
 
-* **📨 Bulk Email Campaigns:** Send thousands of emails in the background without blocking the API.
-* **📧 Single Email Sending:** Easily send customized single emails.
-* **📈 Campaign Statistics:** Track the performance of your email campaigns with detailed statistics, including total emails sent, failed, and clicked.
-* **🖱️ Click Tracking:** Monitor user engagement by tracking clicks on the links in your emails.
-* **📋 All Campaigns List:** Get a paginated list of all your email campaigns.
-* **ጤ Health Check Endpoint:** A health check endpoint to monitor the status of the database and Redis connections.
+-   **📨 Bulk Email Campaigns:** Send thousands of emails in the background without blocking the API.
+-   **📧 Single Email Sending:** Easily send customized single emails.
+-   **📈 Campaign Statistics:** Track the performance of your email campaigns with detailed statistics, including total emails sent, failed, and clicked.
+-   **🖱️ Click Tracking:** Monitor user engagement by tracking clicks on the links in your emails.
+-   **📋 All Campaigns List:** Get a paginated list of all your email campaigns.
+-   **ጤ Health Check Endpoint:** A health check endpoint to monitor the status of the database and Redis connections.
 
 ---
 
 ## Prerequisites
 
-* **Python 3.10+**
-* **Docker and Docker Compose**
-* **PostgreSQL Database**
-* **Redis** (Optional, for caching and background tasks)
+-   **Python 3.10+**
+-   **Docker and Docker Compose**
+-   **PostgreSQL Database**
+-   **Redis** (Optional, for caching and background tasks)
 
 ---
 
@@ -41,7 +41,7 @@ This is a powerful and scalable Email Blast API built with **FastAPI** and **SQL
 ```bash
 git clone https://github.com/GratiaManullang03/email-blast.git
 cd email-blast
-````
+```
 
 ### 2\. Create and configure the .env file:
 
@@ -92,21 +92,21 @@ docker-compose up -d --build
 
 ### Health
 
-  * `GET /health`: Checks the health of the database and Redis connections.
+-   `GET /health`: Checks the health of the database and Redis connections.
 
 ### Emails
 
-  * `POST /emails/bulk`: Sends a bulk email campaign to multiple recipients.
-  * `POST /emails/single`: Sends a single customized email.
-  * `GET /emails/track/{tracking_id}`: Tracks an email click and redirects to a landing page.
-  * `POST /emails/track/{tracking_id}`: API endpoint to track an email click.
-  * `GET /emails/campaigns`: Gets a list of email campaigns with pagination.
-  * `GET /emails/campaigns/{campaign_id}/stats`: Gets statistics for a specific campaign.
-  * `GET /emails/stats/overview`: Gets an overview of all email statistics.
+-   `POST /emails/bulk`: Sends a bulk email campaign to multiple recipients.
+-   `POST /emails/single`: Sends a single customized email.
+-   `GET /emails/track/{tracking_id}`: Tracks an email click and redirects to a landing page.
+-   `POST /emails/track/{tracking_id}`: API endpoint to track an email click.
+-   `GET /emails/campaigns`: Gets a list of email campaigns with pagination.
+-   `GET /emails/campaigns/{campaign_id}/stats`: Gets statistics for a specific campaign.
+-   `GET /emails/stats/overview`: Gets an overview of all email statistics.
 
 ### Interactive API Documentation
 
 Once the application is running, you can access the interactive API documentation at:
 
-  * **Swagger UI:** `http://localhost:8000/docs`
-  * **ReDoc:** `http://localhost:8000/redoc`
+-   **Swagger UI:** `http://localhost:8000/docs`
+-   **ReDoc:** `http://localhost:8000/redoc`

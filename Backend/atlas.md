@@ -13,44 +13,49 @@ ATLAS is a robust, multi-tenant authentication and authorization service built w
 ## Key Features
 
 ### 🔐 Security & Authentication
-- **JWT-based Authentication**: Secure login/logout functionality using JSON Web Tokens (JWT) with support for access and refresh tokens
-- **Rate Limiting**: Built-in request rate limiting to prevent abuse and brute force attacks
-- **Response Encryption**: Optional AES-256 encryption for API responses with configurable keys
-- **CORS Protection**: Secure CORS configuration with customizable origins
-- **Email Verification**: User email verification system with secure token-based confirmation
-- **Password Reset**: Secure password reset flow with time-limited tokens
+
+-   **JWT-based Authentication**: Secure login/logout functionality using JSON Web Tokens (JWT) with support for access and refresh tokens
+-   **Rate Limiting**: Built-in request rate limiting to prevent abuse and brute force attacks
+-   **Response Encryption**: Optional AES-256 encryption for API responses with configurable keys
+-   **CORS Protection**: Secure CORS configuration with customizable origins
+-   **Email Verification**: User email verification system with secure token-based confirmation
+-   **Password Reset**: Secure password reset flow with time-limited tokens
 
 ### 🏢 Multi-Tenant Architecture
-- **Schema Isolation**: Complete tenant separation using PostgreSQL schemas via `X-Tenant-Schema` header
-- **Tenant Management**: Administrative endpoints for creating and managing tenant schemas (can be disabled for production)
-- **Seed Data Protection**: Built-in protection against accidental deletion of seed data
+
+-   **Schema Isolation**: Complete tenant separation using PostgreSQL schemas via `X-Tenant-Schema` header
+-   **Tenant Management**: Administrative endpoints for creating and managing tenant schemas (can be disabled for production)
+-   **Seed Data Protection**: Built-in protection against accidental deletion of seed data
 
 ### 👥 User & Access Management
-- **User Management**: Complete CRUD operations for managing users within each tenant
-- **Application Management**: Registration and management of different applications that use the authentication service
-- **Role-Based Access Control (RBAC)**: Define granular roles with permissions for each application
-- **User Role Assignment**: Flexible assignment and revocation of roles to/from users
-- **Permission System**: Fine-grained permission control per application and role
+
+-   **User Management**: Complete CRUD operations for managing users within each tenant
+-   **Application Management**: Registration and management of different applications that use the authentication service
+-   **Role-Based Access Control (RBAC)**: Define granular roles with permissions for each application
+-   **User Role Assignment**: Flexible assignment and revocation of roles to/from users
+-   **Permission System**: Fine-grained permission control per application and role
 
 ### 📧 Communication & Notifications
-- **Email System**: Built-in SMTP support for transactional emails (verification, password reset)
-- **HTML Email Templates**: Customizable email templates with Jinja2 templating
-- **Email Cooldown**: Anti-spam protection with configurable cooldown periods
+
+-   **Email System**: Built-in SMTP support for transactional emails (verification, password reset)
+-   **HTML Email Templates**: Customizable email templates with Jinja2 templating
+-   **Email Cooldown**: Anti-spam protection with configurable cooldown periods
 
 ### 🚀 Development & Deployment
-- **Database Seeding**: Automated initialization scripts for default tenants and sample data
-- **Docker Ready**: Fully containerized with Docker for easy setup, development, and deployment
-- **Environment-based Configuration**: Comprehensive configuration via environment variables
-- **API Documentation**: Auto-generated OpenAPI/Swagger documentation
+
+-   **Database Seeding**: Automated initialization scripts for default tenants and sample data
+-   **Docker Ready**: Fully containerized with Docker for easy setup, development, and deployment
+-   **Environment-based Configuration**: Comprehensive configuration via environment variables
+-   **API Documentation**: Auto-generated OpenAPI/Swagger documentation
 
 ## Technology Stack
 
-- **Backend**: Python, FastAPI
-- **Database**: PostgreSQL (with SQLAlchemy ORM)
-- **Security**: JWT tokens, AES-256 encryption, Rate limiting (slowapi)
-- **Email**: fastapi-mail with SMTP support
-- **Templates**: Jinja2 for email templates
-- **Containerization**: Docker, Docker Compose
+-   **Backend**: Python, FastAPI
+-   **Database**: PostgreSQL (with SQLAlchemy ORM)
+-   **Security**: JWT tokens, AES-256 encryption, Rate limiting (slowapi)
+-   **Email**: fastapi-mail with SMTP support
+-   **Templates**: Jinja2 for email templates
+-   **Containerization**: Docker, Docker Compose
 
 ## Project Structure
 
@@ -92,8 +97,8 @@ Follow these instructions to get the project up and running on your local machin
 
 ### Prerequisites
 
-- Docker
-- Docker Compose
+-   Docker
+-   Docker Compose
 
 ### 1. Clone the Repository
 
@@ -192,16 +197,19 @@ ENABLE_TENANT_MANAGEMENT=false
 **Generate Secure Keys**: You must replace the following keys with secure, random values:
 
 1. **SECRET_KEY** (for JWT tokens):
+
 ```sh
 openssl rand -hex 64
 ```
 
 2. **ENCRYPTION_KEY** (32 characters for AES-256):
+
 ```sh
 openssl rand -hex 16
 ```
 
 3. **ENCRYPTION_IV** (16 characters for AES):
+
 ```sh
 openssl rand -hex 8
 ```
@@ -232,8 +240,8 @@ The API will be available at `http://localhost:8000`. You can access the interac
 
 When interacting with the API, you may need to provide the following headers:
 
-- **Authorization**: `Bearer <your_jwt_token>` for accessing protected endpoints
-- **X-Tenant-Schema**: The name of the tenant schema you want to operate on (e.g., `default_tenant`). If not provided, it will use the `DEFAULT_SCHEMA` from your configuration
+-   **Authorization**: `Bearer <your_jwt_token>` for accessing protected endpoints
+-   **X-Tenant-Schema**: The name of the tenant schema you want to operate on (e.g., `default_tenant`). If not provided, it will use the `DEFAULT_SCHEMA` from your configuration
 
 ### Error Codes & Responses
 
@@ -241,214 +249,244 @@ ATLAS uses standard HTTP status codes to indicate the success or failure of API 
 
 ```json
 {
-  "success": false,
-  "message": "Error description",
-  "data": null
+    "success": false,
+    "message": "Error description",
+    "data": null
 }
 ```
 
 #### Common Error Codes
 
-| Status Code | Description | Common Causes | Solution |
-|-------------|-------------|---------------|----------|
-| **400 Bad Request** | Invalid request data | - Username/email already exists<br>- Application code already exists<br>- Role code already exists<br>- Invalid data format | Check request payload and ensure unique constraints are met |
-| **401 Unauthorized** | Authentication failed | - Missing or invalid JWT token<br>- Token expired<br>- Invalid credentials<br>- Session fingerprint mismatch | Login again or refresh your access token |
-| **403 Forbidden** | Insufficient permissions | - Missing required permission<br>- No access to application<br>- Role level too low<br>- Attempting to modify protected seed data | Contact admin for proper role/permission assignment |
-| **404 Not Found** | Resource not found | - User not found<br>- Role not found<br>- Application not found<br>- Role assignment not found<br>- Tenant not found | Verify resource ID exists in the system |
-| **409 Conflict** | Resource conflict | - Tenant schema already exists | Use a different name or remove existing resource |
-| **422 Unprocessable Entity** | Token validation failed | - Refresh token expired<br>- Refresh token invalid | Login again to get new tokens |
-| **429 Too Many Requests** | Rate limit exceeded | - Too many email verification requests<br>- Too many password reset requests<br>- Too many login attempts (5/minute) | Wait for cooldown period before retrying |
-| **500 Internal Server Error** | Server error | - Database connection failed<br>- Tenant creation failed<br>- Encryption failed<br>- Unexpected server error | Check server logs and database connectivity |
+| Status Code                   | Description              | Common Causes                                                                                                                     | Solution                                                    |
+| ----------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **400 Bad Request**           | Invalid request data     | - Username/email already exists<br>- Application code already exists<br>- Role code already exists<br>- Invalid data format       | Check request payload and ensure unique constraints are met |
+| **401 Unauthorized**          | Authentication failed    | - Missing or invalid JWT token<br>- Token expired<br>- Invalid credentials<br>- Session fingerprint mismatch                      | Login again or refresh your access token                    |
+| **403 Forbidden**             | Insufficient permissions | - Missing required permission<br>- No access to application<br>- Role level too low<br>- Attempting to modify protected seed data | Contact admin for proper role/permission assignment         |
+| **404 Not Found**             | Resource not found       | - User not found<br>- Role not found<br>- Application not found<br>- Role assignment not found<br>- Tenant not found              | Verify resource ID exists in the system                     |
+| **409 Conflict**              | Resource conflict        | - Tenant schema already exists                                                                                                    | Use a different name or remove existing resource            |
+| **422 Unprocessable Entity**  | Token validation failed  | - Refresh token expired<br>- Refresh token invalid                                                                                | Login again to get new tokens                               |
+| **429 Too Many Requests**     | Rate limit exceeded      | - Too many email verification requests<br>- Too many password reset requests<br>- Too many login attempts (5/minute)              | Wait for cooldown period before retrying                    |
+| **500 Internal Server Error** | Server error             | - Database connection failed<br>- Tenant creation failed<br>- Encryption failed<br>- Unexpected server error                      | Check server logs and database connectivity                 |
 
 #### Detailed Error Scenarios
 
 ##### Authentication Errors (401)
 
 **Invalid Credentials**
+
 ```json
 {
-  "detail": "Invalid credentials or inactive account"
+    "detail": "Invalid credentials or inactive account"
 }
 ```
-- **Cause**: Wrong username/password or account is inactive
-- **Solution**: Verify credentials and account status
+
+-   **Cause**: Wrong username/password or account is inactive
+-   **Solution**: Verify credentials and account status
 
 **Session Fingerprint Mismatch**
+
 ```json
 {
-  "detail": "Session fingerprint mismatch - token used from different device/location"
+    "detail": "Session fingerprint mismatch - token used from different device/location"
 }
 ```
-- **Cause**: JWT token used from different device or IP address
-- **Solution**: Login again from current device
+
+-   **Cause**: JWT token used from different device or IP address
+-   **Solution**: Login again from current device
 
 **Not Authenticated**
+
 ```json
 {
-  "detail": "Not authenticated"
+    "detail": "Not authenticated"
 }
 ```
-- **Cause**: No valid token provided
-- **Solution**: Include valid JWT token in Authorization header
+
+-   **Cause**: No valid token provided
+-   **Solution**: Include valid JWT token in Authorization header
 
 ##### Authorization Errors (403)
 
 **Insufficient Permissions**
+
 ```json
 {
-  "detail": "Not enough permissions. Requires: users:read"
+    "detail": "Not enough permissions. Requires: users:read"
 }
 ```
-- **Cause**: User doesn't have required permission
-- **Solution**: Contact admin to assign proper role with required permissions
+
+-   **Cause**: User doesn't have required permission
+-   **Solution**: Contact admin to assign proper role with required permissions
 
 **Application Access Denied**
+
 ```json
 {
-  "detail": "Not enough permissions. Requires access to application: APP_CODE"
+    "detail": "Not enough permissions. Requires access to application: APP_CODE"
 }
 ```
-- **Cause**: User doesn't have role for the required application
-- **Solution**: Request access to the application from admin
+
+-   **Cause**: User doesn't have role for the required application
+-   **Solution**: Request access to the application from admin
 
 **Role Level Insufficient**
+
 ```json
 {
-  "detail": "Forbidden. Required role level: 1, 2"
+    "detail": "Forbidden. Required role level: 1, 2"
 }
 ```
-- **Cause**: User's role level is too low
-- **Solution**: Request higher role level from admin
+
+-   **Cause**: User's role level is too low
+-   **Solution**: Request higher role level from admin
 
 **Protected Seed Data**
+
 ```json
 {
-  "detail": "Cannot delete seed admin user. This user is protected."
+    "detail": "Cannot delete seed admin user. This user is protected."
 }
 ```
-- **Cause**: Attempting to modify/delete protected seed data (ATLAS app, SUPER_ADMIN role, admin user)
-- **Solution**: Seed data cannot be modified to maintain system integrity
+
+-   **Cause**: Attempting to modify/delete protected seed data (ATLAS app, SUPER_ADMIN role, admin user)
+-   **Solution**: Seed data cannot be modified to maintain system integrity
 
 ##### Token Errors (422)
 
 **Refresh Token Expired**
+
 ```json
 {
-  "detail": "Refresh token expired, please login again"
+    "detail": "Refresh token expired, please login again"
 }
 ```
-- **Cause**: Refresh token has expired (default: 30 days)
-- **Solution**: Perform full login to get new tokens
+
+-   **Cause**: Refresh token has expired (default: 30 days)
+-   **Solution**: Perform full login to get new tokens
 
 ##### Rate Limiting Errors (429)
 
 **Email Verification Cooldown**
+
 ```json
 {
-  "detail": "Verification email sudah dikirim. Mohon tunggu sebelum meminta lagi."
+    "detail": "Verification email sudah dikirim. Mohon tunggu sebelum meminta lagi."
 }
 ```
-- **Cause**: Verification email requested too frequently
-- **Solution**: Wait for cooldown period (default: 5 minutes)
+
+-   **Cause**: Verification email requested too frequently
+-   **Solution**: Wait for cooldown period (default: 5 minutes)
 
 **Password Reset Cooldown**
+
 ```json
 {
-  "detail": "Reset password email sudah dikirim. Mohon tunggu sebelum meminta lagi."
+    "detail": "Reset password email sudah dikirim. Mohon tunggu sebelum meminta lagi."
 }
 ```
-- **Cause**: Password reset requested too frequently
-- **Solution**: Wait for cooldown period (default: 5 minutes)
+
+-   **Cause**: Password reset requested too frequently
+-   **Solution**: Wait for cooldown period (default: 5 minutes)
 
 **Login Rate Limit**
-- **Limit**: 5 requests per minute per IP
-- **Solution**: Wait before attempting more login requests
+
+-   **Limit**: 5 requests per minute per IP
+-   **Solution**: Wait before attempting more login requests
 
 #### Error Response Examples
 
 **Success Response:**
+
 ```json
 {
-  "success": true,
-  "message": "User created successfully",
-  "data": {
-    "user_id": 1,
-    "username": "johndoe",
-    "email": "john@example.com"
-  }
+    "success": true,
+    "message": "User created successfully",
+    "data": {
+        "user_id": 1,
+        "username": "johndoe",
+        "email": "john@example.com"
+    }
 }
 ```
 
 **Error Response:**
+
 ```json
 {
-  "success": false,
-  "message": "User not found",
-  "data": null
+    "success": false,
+    "message": "User not found",
+    "data": null
 }
 ```
 
 **Validation Error (FastAPI automatic):**
+
 ```json
 {
-  "detail": [
-    {
-      "loc": ["body", "email"],
-      "msg": "value is not a valid email address",
-      "type": "value_error.email"
-    }
-  ]
+    "detail": [
+        {
+            "loc": ["body", "email"],
+            "msg": "value is not a valid email address",
+            "type": "value_error.email"
+        }
+    ]
 }
 ```
 
 ### Available Endpoints
 
 #### Authentication (`/api/v1/auth`)
-- `POST /login` - User login with username/email and password
-- `POST /refresh` - Refresh access token using refresh token
-- `POST /logout` - Logout and invalidate tokens
-- `GET /me` - Get current user information
-- `POST /request-verification` - Request email verification
-- `GET /verify-email` - Verify email with token
-- `POST /forgot-password` - Request password reset
-- `GET /reset-password` - Password reset form
-- `POST /reset-password` - Submit new password
+
+-   `POST /login` - User login with username/email and password
+-   `POST /refresh` - Refresh access token using refresh token
+-   `POST /logout` - Logout and invalidate tokens
+-   `GET /me` - Get current user information
+-   `POST /request-verification` - Request email verification
+-   `GET /verify-email` - Verify email with token
+-   `POST /forgot-password` - Request password reset
+-   `GET /reset-password` - Password reset form
+-   `POST /reset-password` - Submit new password
 
 #### Users (`/api/v1/users`)
-- `GET /` - List all users (with pagination)
-- `GET /{user_id}` - Get specific user
-- `POST /` - Create new user
-- `PUT /{user_id}` - Update user
-- `DELETE /{user_id}` - Delete user
-- `POST /{user_id}/roles` - Assign roles to user
-- `GET /{user_id}/roles` - Get user roles
-- `DELETE /{user_id}/roles/{role_id}` - Remove role from user
+
+-   `GET /` - List all users (with pagination)
+-   `GET /{user_id}` - Get specific user
+-   `POST /` - Create new user
+-   `PUT /{user_id}` - Update user
+-   `DELETE /{user_id}` - Delete user
+-   `POST /{user_id}/roles` - Assign roles to user
+-   `GET /{user_id}/roles` - Get user roles
+-   `DELETE /{user_id}/roles/{role_id}` - Remove role from user
 
 #### Applications (`/api/v1/applications`)
-- `GET /` - List all applications
-- `GET /{app_id}` - Get specific application with roles
-- `POST /` - Create new application
-- `PUT /{app_id}` - Update application
-- `DELETE /{app_id}` - Delete application
+
+-   `GET /` - List all applications
+-   `GET /{app_id}` - Get specific application with roles
+-   `POST /` - Create new application
+-   `PUT /{app_id}` - Update application
+-   `DELETE /{app_id}` - Delete application
 
 #### Roles (`/api/v1/roles`)
-- `GET /` - List all roles
-- `GET /{role_id}` - Get specific role
-- `POST /` - Create new role
-- `PUT /{role_id}` - Update role
-- `DELETE /{role_id}` - Delete role
-- `PUT /{role_id}/permissions` - Update role permissions
 
-#### Tenant Management (`/api/v1/tenants`) *
-- `POST /` - Create new tenant schema
-- `GET /` - List all tenants
-- `GET /{schema_name}` - Get specific tenant info
-- `DELETE /{schema_name}` - Delete tenant schema
+-   `GET /` - List all roles
+-   `GET /{role_id}` - Get specific role
+-   `POST /` - Create new role
+-   `PUT /{role_id}` - Update role
+-   `DELETE /{role_id}` - Delete role
+-   `PUT /{role_id}/permissions` - Update role permissions
 
-*Note: Tenant management endpoints are only available when `ENABLE_TENANT_MANAGEMENT=true`*
+#### Tenant Management (`/api/v1/tenants`) \*
+
+-   `POST /` - Create new tenant schema
+-   `GET /` - List all tenants
+-   `GET /{schema_name}` - Get specific tenant info
+-   `DELETE /{schema_name}` - Delete tenant schema
+
+_Note: Tenant management endpoints are only available when `ENABLE_TENANT_MANAGEMENT=true`_
 
 #### Health Check (`/api/v1/health`)
-- `GET /` - Application health status
+
+-   `GET /` - Application health status
 
 ## Configuration Options
 
@@ -461,16 +499,18 @@ ATLAS uses standard HTTP status codes to indicate the success or failure of API 
 ### Email Configuration
 
 Configure SMTP settings for email notifications:
-- Email verification for new users
-- Password reset functionality
-- Customizable HTML templates in `app/templates/`
+
+-   Email verification for new users
+-   Password reset functionality
+-   Customizable HTML templates in `app/templates/`
 
 ### Tenant Management Security
 
 For production deployments to clients:
-- Set `ENABLE_TENANT_MANAGEMENT=false` to completely disable tenant management endpoints
-- This prevents clients from accidentally or maliciously manipulating tenant data
-- Only enable for development or administrative maintenance
+
+-   Set `ENABLE_TENANT_MANAGEMENT=false` to completely disable tenant management endpoints
+-   This prevents clients from accidentally or maliciously manipulating tenant data
+-   Only enable for development or administrative maintenance
 
 ### Multi-Tenant Usage
 
@@ -514,14 +554,14 @@ docker-compose logs -f db
 
 ### Security Checklist
 
-- [ ] Set `DEBUG=false`
-- [ ] Generate secure `SECRET_KEY`, `ENCRYPTION_KEY`, and `ENCRYPTION_IV`
-- [ ] Configure proper SMTP settings
-- [ ] Set `ENABLE_TENANT_MANAGEMENT=false` for client deployments
-- [ ] Configure proper `FRONTEND_URL` for CORS
-- [ ] Use strong database credentials
-- [ ] Enable HTTPS in production
-- [ ] Configure proper logging
+-   [ ] Set `DEBUG=false`
+-   [ ] Generate secure `SECRET_KEY`, `ENCRYPTION_KEY`, and `ENCRYPTION_IV`
+-   [ ] Configure proper SMTP settings
+-   [ ] Set `ENABLE_TENANT_MANAGEMENT=false` for client deployments
+-   [ ] Configure proper `FRONTEND_URL` for CORS
+-   [ ] Use strong database credentials
+-   [ ] Enable HTTPS in production
+-   [ ] Configure proper logging
 
 ### Environment Variables for Production
 

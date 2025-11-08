@@ -12,19 +12,19 @@ This project is a high-performance, asynchronous FastAPI application that serves
 
 ## Features
 
-  - **Fast & Asynchronous**: Built with FastAPI and `asyncio` for high-performance, non-blocking I/O.
-  - **Aggregated Search Results**: Automatically performs searches on multiple query variations (e.g., "item in location", "item suppliers in location") to gather a comprehensive list of results.
-  - **Deduplication**: Intelligently removes duplicate results based on their URL, providing a clean and unique list.
-  - **Dynamic Configuration**: Easily configure the application, including API keys and database connections, using a `.env` file.
-  - **Scalable Architecture**: Organized into a clean and scalable project structure with services, schemas, and repositories.
-  - **Bulk Operations**: Includes a `/bulk-search` endpoint to perform multiple search operations in a single API call.
-  - **Health Check**: A `/health` endpoint to monitor the status of the database and other connected services.
+-   **Fast & Asynchronous**: Built with FastAPI and `asyncio` for high-performance, non-blocking I/O.
+-   **Aggregated Search Results**: Automatically performs searches on multiple query variations (e.g., "item in location", "item suppliers in location") to gather a comprehensive list of results.
+-   **Deduplication**: Intelligently removes duplicate results based on their URL, providing a clean and unique list.
+-   **Dynamic Configuration**: Easily configure the application, including API keys and database connections, using a `.env` file.
+-   **Scalable Architecture**: Organized into a clean and scalable project structure with services, schemas, and repositories.
+-   **Bulk Operations**: Includes a `/bulk-search` endpoint to perform multiple search operations in a single API call.
+-   **Health Check**: A `/health` endpoint to monitor the status of the database and other connected services.
 
 ## Prerequisites
 
-  - Python 3.10+
-  - PostgreSQL Database
-  - An API Key from [SerpApi](https://serpapi.com/)
+-   Python 3.10+
+-   PostgreSQL Database
+-   An API Key from [SerpApi](https://serpapi.com/)
 
 ## Installation
 
@@ -85,13 +85,13 @@ The API will be available at `http://localhost:8081`. You can access the interac
 
 ### Health Check
 
-  - **GET** `/api/v1/health`
-  - **Description**: Checks the connection status of the database and Redis (if configured).
-  - **Response**:
+-   **GET** `/api/v1/health`
+-   **Description**: Checks the connection status of the database and Redis (if configured).
+-   **Response**:
     ```json
     {
-      "success": true,
-      "message": "Database: healthy, Redis: not configured"
+        "success": true,
+        "message": "Database: healthy, Redis: not configured"
     }
     ```
 
@@ -99,40 +99,40 @@ The API will be available at `http://localhost:8081`. You can access the interac
 
 ### Perform a Search
 
-  - **POST** `/api/v1/serpapi/search`
-  - **Description**: Performs a search using multiple query variations, aggregates the results, and returns a unique list.
-  - **Request Body**:
+-   **POST** `/api/v1/serpapi/search`
+-   **Description**: Performs a search using multiple query variations, aggregates the results, and returns a unique list.
+-   **Request Body**:
     ```json
     {
-      "item": "clove",
-      "location": "Mumbai, Maharashtra, India",
-      "num_results": 100,
-      "search_variations": true
+        "item": "clove",
+        "location": "Mumbai, Maharashtra, India",
+        "num_results": 100,
+        "search_variations": true
     }
     ```
-  - **Parameters**:
-      - `item` (str): The product or item to search for.
-      - `location` (str): The geographical location for the search.
-      - `num_results` (int, optional): The desired number of results per query variation. Min: 10, Max: 100. Defaults to 10.
-      - `search_variations` (bool, optional): If `true`, the service will query multiple variations of the search term. Defaults to `true`.
-  - **Success Response** (`200 OK`):
+-   **Parameters**:
+    -   `item` (str): The product or item to search for.
+    -   `location` (str): The geographical location for the search.
+    -   `num_results` (int, optional): The desired number of results per query variation. Min: 10, Max: 100. Defaults to 10.
+    -   `search_variations` (bool, optional): If `true`, the service will query multiple variations of the search term. Defaults to `true`.
+-   **Success Response** (`200 OK`):
     ```json
     {
-      "success": true,
-      "message": "Search completed successfully",
-      "data": {
-        "query": "clove in Mumbai, Maharashtra, India",
-        "location": "Mumbai, Maharashtra, India",
-        "total_results": 50,
-        "results": [
-          {
-            "title": "Top Clove Wholesalers in Mumbai near me",
-            "link": "https://www.justdial.com/Mumbai/Clove-Wholesalers/nct-11301685",
-            "snippet": "Popular Clove Wholesalers in Mumbai · A1 Dry Fruit · Shah Gabhrubhai Uttamchand..."
-          }
-          // ... more results
-        ]
-      }
+        "success": true,
+        "message": "Search completed successfully",
+        "data": {
+            "query": "clove in Mumbai, Maharashtra, India",
+            "location": "Mumbai, Maharashtra, India",
+            "total_results": 50,
+            "results": [
+                {
+                    "title": "Top Clove Wholesalers in Mumbai near me",
+                    "link": "https://www.justdial.com/Mumbai/Clove-Wholesalers/nct-11301685",
+                    "snippet": "Popular Clove Wholesalers in Mumbai · A1 Dry Fruit · Shah Gabhrubhai Uttamchand..."
+                }
+                // ... more results
+            ]
+        }
     }
     ```
 
@@ -140,26 +140,26 @@ The API will be available at `http://localhost:8081`. You can access the interac
 
 ### Perform a Bulk Search
 
-  - **POST** `/api/v1/serpapi/bulk-search`
-  - **Description**: Executes multiple search requests in parallel.
-  - **Request Body**:
+-   **POST** `/api/v1/serpapi/bulk-search`
+-   **Description**: Executes multiple search requests in parallel.
+-   **Request Body**:
     ```json
     {
-      "searches": [
-        {
-          "item": "rice",
-          "location": "Hanoi, Vietnam",
-          "num_results": 20
-        },
-        {
-          "item": "coffee",
-          "location": "Jakarta, Indonesia",
-          "num_results": 20
-        }
-      ]
+        "searches": [
+            {
+                "item": "rice",
+                "location": "Hanoi, Vietnam",
+                "num_results": 20
+            },
+            {
+                "item": "coffee",
+                "location": "Jakarta, Indonesia",
+                "num_results": 20
+            }
+        ]
     }
     ```
-  - **Success Response** (`200 OK`):
+-   **Success Response** (`200 OK`):
     ```json
     {
         "success": true,
