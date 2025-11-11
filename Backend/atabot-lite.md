@@ -27,7 +27,6 @@ A simple chatbot for company profiles that answers questions based on company da
 -   [Deployment](#deployment)
 -   [Database Setup](#database-setup)
 -   [Customization](#customization)
--   [Support](#support)
 -   [License](#license)
 
 ## Key Features
