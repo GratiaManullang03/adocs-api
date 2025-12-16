@@ -174,17 +174,154 @@ LOG_TO_FILE=false
 
 ## Running the Application
 
-### Development Mode
+### Method 1: Direct Python (Development)
+
+**Development Mode:**
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Production Mode
+**Production Mode:**
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
+
+### Method 2: Docker (Recommended for Production)
+
+**Prerequisites:**
+
+-   Docker installed (version 20.10+)
+-   Docker Compose installed (version 1.29+)
+
+**Step 1: Configure Environment**
+
+Create `.env` file from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your actual configuration values.
+
+**Step 2: Build and Run with Docker Compose**
+
+```bash
+# Build the image
+docker-compose build
+
+# Run in detached mode (production)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the container
+docker-compose down
+```
+
+**Step 3: Development Mode with Hot Reload**
+
+For development, use the override file which enables hot reload:
+
+```bash
+# This automatically uses docker-compose.override.yml
+docker-compose up
+
+# The override file mounts ./app directory for live code changes
+```
+
+**Docker Commands Reference:**
+
+```bash
+# Rebuild after code changes (without hot reload)
+docker-compose up -d --build
+
+# View container status
+docker-compose ps
+
+# Execute commands inside container
+docker-compose exec app bash
+
+# View logs with tail
+docker-compose logs -f --tail=100
+
+# Restart container
+docker-compose restart
+
+# Stop and remove containers, networks
+docker-compose down
+
+# Stop and remove containers, networks, and volumes
+docker-compose down -v
+```
+
+**Database Migrations with Docker:**
+
+Since the database is cloud-based, run migrations separately:
+
+```bash
+# Option 1: Run migrations from your local machine
+python migrations/migrate.py up
+
+# Option 2: Run migrations from inside container
+docker-compose exec app python /app/migrations/migrate.py up
+
+# Check migration status
+docker-compose exec app python /app/migrations/migrate.py status
+```
+
+**Health Check:**
+
+Docker container includes automatic health checks:
+
+-   Interval: 30 seconds
+-   Timeout: 10 seconds
+-   Start period: 40 seconds
+-   Retries: 3
+
+Check container health:
+
+```bash
+docker-compose ps
+# Look for "healthy" in STATE column
+```
+
+**Environment Variables in Docker:**
+
+All environment variables are passed from `.env` file to the container. Key variables:
+
+-   `DATABASE_URL`: Must point to your cloud database (Aiven/other)
+-   `XENDIT_WEBHOOK_URL`: Must be publicly accessible HTTPS URL
+-   `API_BASE_URL`: Your frontend URL for gallery links
+-   `CORS_ORIGINS`: Add your frontend domain(s)
+
+**Docker Networking:**
+
+The application runs on port 8000 by default. Access from host:
+
+```
+http://localhost:8000
+```
+
+To change the port, edit `docker-compose.yml`:
+
+```yaml
+ports:
+    - '8080:8000' # Change 8080 to your desired port
+```
+
+**Production Deployment Tips:**
+
+1. **Use docker-compose.yml only** (not override file) in production
+2. **Set `DEBUG=false`** in production `.env`
+3. **Configure proper CORS origins** (not `*`)
+4. **Use HTTPS** for `XENDIT_WEBHOOK_URL`
+5. **Set strong tokens** for `XENDIT_CALLBACK_TOKEN` and `MAINTENANCE_TOKEN`
+6. **Monitor logs** with centralized logging system
+7. **Set up database backups** for your cloud database
+8. **Use container orchestration** (Kubernetes, ECS) for scaling
 
 **Access Points:**
 
@@ -909,6 +1046,145 @@ pytest tests/test_transaction_service.py
 
 ## Deployment
 
+### Deployment Options
+
+#### Option 1: Docker Deployment (Recommended)
+
+**Prerequisites:**
+
+-   Server with Docker and Docker Compose installed
+-   Cloud database (Aiven PostgreSQL or similar)
+-   Domain with SSL certificate
+-   Configured environment variables
+
+**Step-by-Step Deployment:**
+
+1. **Clone repository on server:**
+
+```bash
+git clone https://github.com/GratiaManullang03/photobox-api.git
+cd photobox-api
+```
+
+2. **Configure environment:**
+
+```bash
+cp .env.example .env
+nano .env  # Edit with production values
+```
+
+3. **Run database migrations:**
+
+```bash
+# Install Python locally or use Docker
+python migrations/migrate.py up
+```
+
+4. **Build and start container:**
+
+```bash
+docker-compose build
+docker-compose up -d
+```
+
+5. **Verify deployment:**
+
+```bash
+docker-compose ps
+docker-compose logs -f
+curl http://localhost:8000/health
+```
+
+6. **Set up reverse proxy (Nginx/Caddy):**
+
+Example Nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+7. **Configure SSL with Let's Encrypt:**
+
+```bash
+certbot --nginx -d api.yourdomain.com
+```
+
+**Docker Production Best Practices:**
+
+-   Use specific image tags (not `latest`)
+-   Limit container resources (CPU/memory)
+-   Set up container restart policies
+-   Use Docker secrets for sensitive data
+-   Implement log rotation
+-   Monitor container health
+-   Set up auto-restart on failure
+
+**Scaling with Docker:**
+
+For high traffic, use Docker Swarm or Kubernetes:
+
+```bash
+# Docker Swarm example
+docker swarm init
+docker stack deploy -c docker-compose.yml photobox
+
+# Scale to 3 replicas
+docker service scale photobox_app=3
+```
+
+**Container Resource Limits:**
+
+Add to `docker-compose.yml`:
+
+```yaml
+services:
+    app:
+        deploy:
+            resources:
+                limits:
+                    cpus: '1.0'
+                    memory: 1G
+                reservations:
+                    cpus: '0.5'
+                    memory: 512M
+```
+
+#### Option 2: Traditional Deployment (Virtual Environment)
+
+**On Ubuntu/Debian server:**
+
+1. Install Python and dependencies
+2. Set up systemd service
+3. Configure Nginx reverse proxy
+4. Enable SSL with Let's Encrypt
+
+See [CLAUDE.md](CLAUDE.md) for detailed traditional deployment steps.
+
+#### Option 3: Platform-as-a-Service (PaaS)
+
+**Vercel (Serverless):**
+
+-   Use `vercel.json` configuration (included)
+-   Deploy with `vercel --prod`
+-   Note: Requires serverless-compatible code
+
+**Railway/Render/Fly.io:**
+
+-   Use Dockerfile for deployment
+-   Configure environment variables in dashboard
+-   Deploy from Git repository
+
 ### Environment-Specific Configuration
 
 **Development:**
@@ -916,15 +1192,17 @@ pytest tests/test_transaction_service.py
 -   `DEBUG=true`
 -   Detailed logging
 -   CORS allows all origins
--   Local database
+-   Local database or cloud database
 
 **Production:**
 
 -   `DEBUG=false`
 -   Error logging only
--   CORS restricted to specific domains
+-   CORS restricted to specific domains (e.g., `https://*.atamsindonesia.com`)
 -   Connection pooling optimized for cloud database
 -   `XENDIT_WEBHOOK_URL` must be publicly accessible HTTPS endpoint
+-   Use strong, randomly generated tokens
+-   Enable response encryption if needed (`ENCRYPTION_ENABLED=true`)
 
 ### Database Connection Pooling
 
